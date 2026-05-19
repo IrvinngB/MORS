@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue'
 import type { Ref } from 'vue'
 
-export function useAnimatedStats<T extends Record<string, number>>(
+export function useAnimatedStats<T extends Record<string, unknown>>(
   target: Ref<T | null>,
   keys: (keyof T)[],
   duration = 600
@@ -13,8 +13,8 @@ export function useAnimatedStats<T extends Record<string, number>>(
     (newVal) => {
       if (!newVal) return
       for (const key of keys) {
-        const current = displayValues.value[key as string] ?? newVal[key]
-        const targetVal = newVal[key]
+        const current = displayValues.value[key as string] ?? (newVal[key as string] as number)
+        const targetVal = newVal[key as string] as number
         if (current === targetVal) continue
 
         const startTime = performance.now()
