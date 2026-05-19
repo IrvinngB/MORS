@@ -1,4 +1,4 @@
-irvincodes.dev {
+kaal.irvincodes.dev {
     # Proxy API requests to backend
     reverse_proxy /game/* backend:8000
 
