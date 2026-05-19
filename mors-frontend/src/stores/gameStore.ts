@@ -2,11 +2,13 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { GameState, TurnDeltas, ActionType } from '@/api/types'
 import { newGame, postTurn, getState, deleteSession } from '@/api/game'
+import { useUiStore } from '@/stores/uiStore'
 
 export const useGameStore = defineStore('game', () => {
   const state = ref<GameState | null>(null)
   const deltas = ref<TurnDeltas | null>(null)
   const lastNarrative = ref<string>('')
+  const epitaph = ref<string | null>(null)
   const lastEvent = ref<{ event_type: string; narrative: string } | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -71,7 +73,14 @@ export const useGameStore = defineStore('game', () => {
       deltas.value = res.deltas
       lastNarrative.value = res.narrative
       lastEvent.value = res.event
+      epitaph.value = res.epitaph ?? null
       isTerminal.value = res.is_terminal
+
+      // Show event banner if an event occurred
+      if (res.event) {
+        const ui = useUiStore()
+        ui.triggerEventBanner(res.event.narrative, res.event.event_type)
+      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Turn failed'
     } finally {
@@ -86,6 +95,7 @@ export const useGameStore = defineStore('game', () => {
     state.value = null
     deltas.value = null
     lastNarrative.value = ''
+    epitaph.value = null
     lastEvent.value = null
     isTerminal.value = false
     error.value = null
@@ -95,6 +105,7 @@ export const useGameStore = defineStore('game', () => {
     state,
     deltas,
     lastNarrative,
+    epitaph,
     lastEvent,
     isLoading,
     error,

@@ -33,19 +33,49 @@ function onGoToMenu() {
 <template>
   <div
     class="min-h-screen text-snow flex flex-col relative overflow-hidden"
-    :class="game.inDeathZone ? 'bg-gradient-to-b from-peak via-mors to-death-zone/20' : 'bg-gradient-to-b from-abyss via-mors to-peak/20'"
+    :class="[
+      game.inDeathZone
+        ? 'bg-gradient-to-b from-peak via-mors to-death-zone/20'
+        : game.isNight
+          ? 'bg-gradient-to-b from-abyss via-[#08081a] to-peak/10'
+          : 'bg-gradient-to-b from-abyss via-mors to-peak/20',
+      game.willpowerState === 'DESPAIR' ? 'despair-overlay' : ''
+    ]"
   >
-    <!-- Snow overlay for death zone -->
+    <!-- Night overlay: subtle dark vignette -->
+    <div
+      v-if="game.isNight"
+      class="absolute inset-0 pointer-events-none"
+      style="background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.45) 100%)"
+    />
+
+    <!-- Death zone: snow particles -->
     <div v-if="game.inDeathZone" class="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
-      <div v-for="i in 50" :key="i" 
-           class="snow-particle"
-           :style="{
-             left: `${Math.random() * 100}%`,
-             animationDelay: `${Math.random() * 5}s`,
-             animationDuration: `${4 + Math.random() * 6}s`,
-           }"
+      <div
+        v-for="i in 60"
+        :key="i"
+        class="snow-particle"
+        :style="{
+          left: `${Math.random() * 100}%`,
+          animationDelay: `${Math.random() * 5}s`,
+          animationDuration: `${3 + Math.random() * 5}s`,
+          width: `${Math.random() < 0.3 ? 3 : 2}px`,
+          height: `${Math.random() < 0.3 ? 3 : 2}px`,
+        }"
       />
     </div>
+
+    <!-- Death zone: pulsing red edge -->
+    <div
+      v-if="game.inDeathZone"
+      class="absolute inset-0 pointer-events-none death-zone-pulse"
+    />
+
+    <!-- Despair: desaturating overlay -->
+    <div
+      v-if="game.willpowerState === 'DESPAIR'"
+      class="absolute inset-0 pointer-events-none bg-danger/5 mix-blend-color-burn"
+    />
 
     <EventBanner />
     <ConfirmModal @confirm="confirmAction" @cancel="ui.closeConfirm" />
@@ -59,9 +89,9 @@ function onGoToMenu() {
         <span class="text-lg">←</span>
         <span class="hidden sm:inline">Menú</span>
       </button>
-      
+
       <TurnCounter />
-      
+
       <button
         v-if="game.isTerminal"
         class="text-sm text-warning hover:text-snow transition-colors duration-200 font-medium"
@@ -98,10 +128,47 @@ function onGoToMenu() {
 
       <!-- Right sidebar -->
       <aside class="order-3">
-        <div class="card">
+        <div
+          class="card"
+          :class="game.willpowerState === 'DESPAIR' ? 'despair-panel' : game.willpowerState === 'DOUBT' ? 'doubt-panel' : ''"
+        >
           <ActionPanel />
         </div>
       </aside>
     </main>
   </div>
 </template>
+
+<style scoped>
+/* Death zone pulsing border effect */
+.death-zone-pulse {
+  box-shadow: inset 0 0 60px rgba(192, 57, 43, 0.15);
+  animation: death-pulse 3s ease-in-out infinite;
+}
+
+@keyframes death-pulse {
+  0%, 100% { box-shadow: inset 0 0 60px rgba(192, 57, 43, 0.10); }
+  50%       { box-shadow: inset 0 0 80px rgba(192, 57, 43, 0.25); }
+}
+
+/* Despair state: panel with trembling border */
+.despair-panel {
+  border-color: rgba(231, 76, 60, 0.3) !important;
+  animation: despair-shake 8s ease-in-out infinite;
+}
+
+@keyframes despair-shake {
+  0%, 100% { transform: translateX(0); }
+  92%       { transform: translateX(0); }
+  93%       { transform: translateX(-1px); }
+  94%       { transform: translateX(1px); }
+  95%       { transform: translateX(-1px); }
+  96%       { transform: translateX(0); }
+}
+
+/* Doubt state: slightly dimmed panel */
+.doubt-panel {
+  opacity: 0.92;
+  filter: saturate(0.85);
+}
+</style>

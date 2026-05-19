@@ -248,6 +248,24 @@ def _get_weather_category(weather: str) -> str:
     return "default"
 
 
+def _apply_willpower_voice(text: str, willpower: float) -> str:
+    """Degrade narrative prose quality based on willpower level."""
+    if willpower >= 30:
+        return text  # Normal/high willpower: no degradation
+    if willpower < 15:
+        # DESPAIR: fragments the sentence, adds ellipsis and repetition
+        words = text.split()
+        if len(words) > 8:
+            truncated = " ".join(words[:6])
+            return f"{truncated}... no importa."
+        return f"{text}..."
+    # DOUBT: shortens and adds uncertainty
+    sentences = text.split(". ")
+    if len(sentences) > 1:
+        return sentences[0] + "."
+    return text
+
+
 def generate_narrative(
     action: str,
     deltas: dict,
@@ -256,26 +274,25 @@ def generate_narrative(
     altitude: float,
     weather: str,
 ) -> str:
-    """Generate contextual narrative for a turn."""
-    # Event narrative takes priority
-    if event:
-        return event.get("narrative", "")
-
+    """Generate composed contextual narrative for a turn.
+    
+    Narrative structure:
+    [action narrative] + optional [delta context] + optional [event narrative]
+    These are separate paragraphs, not a single string.
+    """
     altitude_tier = _get_altitude_tier(altitude)
     weather_cat = _get_weather_category(weather)
+    parts: list[str] = []
 
-    # Select base template based on action and context
-    narrative = ""
-
+    # --- Action narrative ---
     if willpower < 15:
-        # DESPAIR state - override most narratives
-        narrative = _select_from_list(LOW_WILLPOWER)
+        # DESPAIR: override with low willpower fragments
+        action_text = _select_from_list(LOW_WILLPOWER)
     elif altitude_tier == "death_zone":
-        narrative = _select_from_list(DEATH_ZONE)
-    elif weather_cat == "storm":
-        narrative = _select_from_list(STORM)
+        action_text = _select_from_list(DEATH_ZONE)
+    elif weather_cat == "storm" and action not in ("CAMP", "EAT", "USE_OXYGEN"):
+        action_text = _select_from_list(STORM)
     else:
-        # Action-specific narrative with altitude variation
         action_templates = {
             "ADVANCE_NORMAL": ADVANCE_NORMAL.get(altitude_tier, ADVANCE_NORMAL["low"]),
             "ADVANCE_AGGRESSIVE": ADVANCE_AGGRESSIVE.get(altitude_tier, ADVANCE_AGGRESSIVE["low"]),
@@ -285,39 +302,55 @@ def generate_narrative(
             "EAT": EAT,
             "DESCEND": DESCEND,
             "REST": REST,
+            "intro": INTRO_TEMPLATES,
         }
         templates = action_templates.get(action, ADVANCE_NORMAL["low"])
-        narrative = _select_from_list(templates)
+        action_text = _select_from_list(templates)
 
-    # Add delta-based context
+    # Apply willpower voice degradation
+    action_text = _apply_willpower_voice(action_text, willpower)
+    parts.append(action_text)
+
+    # --- Delta context (only meaningful changes) ---
     delta_parts = []
-    if deltas.get("stamina_delta", 0) < -20:
+    if deltas.get("stamina_delta", 0) < -25:
         delta_parts.append("El agotamiento se acumula.")
-    if deltas.get("temp_delta", 0) < -2:
+    if deltas.get("temp_delta", 0) < -2.5:
         delta_parts.append("El frío penetra hasta los huesos.")
-    if deltas.get("willpower_delta", 0) < -10:
+    if deltas.get("willpower_delta", 0) < -12:
         delta_parts.append("La mente se nubla.")
-    if deltas.get("altitude_delta", 0) > 200:
+    if deltas.get("altitude_delta", 0) > 250:
         delta_parts.append("La cima se siente más cerca.")
     if deltas.get("altitude_delta", 0) < -150:
         delta_parts.append("Bajar duele más que subir.")
 
-    if delta_parts:
-        narrative += " " + " ".join(delta_parts)
+    if delta_parts and random.random() < 0.6:
+        delta_text = _apply_willpower_voice(" ".join(delta_parts), willpower)
+        parts[0] = parts[0] + " " + delta_text
 
-    # Add contextual suffix based on willpower state
+    # --- Contextual suffix ---
     if willpower < 20:
-        suffix = _select_from_list(SUFFIXES["desperation"])
+        suffix_pool = SUFFIXES["desperation"]
+        suffix_chance = 0.55
     elif willpower > 70:
-        suffix = _select_from_list(SUFFIXES["hope"])
+        suffix_pool = SUFFIXES["hope"]
+        suffix_chance = 0.35
     else:
-        suffix = _select_from_list(SUFFIXES["general"])
+        suffix_pool = SUFFIXES["general"]
+        suffix_chance = 0.30
 
-    # Only add suffix 40% of the time to avoid repetition
-    if random.random() < 0.4:
-        narrative += " " + suffix
+    if random.random() < suffix_chance:
+        suffix = _select_from_list(suffix_pool)
+        suffix = _apply_willpower_voice(suffix, willpower)
+        parts[0] = parts[0] + " " + suffix
 
-    return narrative
+    # --- Event narrative (separate paragraph, if any) ---
+    if event:
+        event_text = event.get("narrative", "")
+        if event_text:
+            parts.append(event_text)
+
+    return "\n\n".join(parts)
 
 
 def generate_epitaph(

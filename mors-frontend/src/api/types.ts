@@ -18,7 +18,9 @@ export interface PlayerStats {
   altitude: number
   max_altitude_reached: number
   turns_above_8000: number
+  entered_death_zone: boolean
 }
+
 
 export interface Consumables {
   food_rations: number
@@ -58,5 +60,6 @@ export interface TurnResult {
   deltas: TurnDeltas
   event: { event_type: string; narrative: string } | null
   narrative: string
+  epitaph: string | null
   is_terminal: boolean
 }

@@ -14,6 +14,7 @@ class PlayerStats(BaseModel):
     altitude: float = Field(default=5200.0, ge=0.0)
     max_altitude_reached: float = Field(default=5200.0, ge=0.0)
     turns_above_8000: int = Field(default=0, ge=0)
+    entered_death_zone: bool = Field(default=False)
 
 
 class Consumables(BaseModel):
@@ -62,4 +63,5 @@ class TurnResult(BaseModel):
     deltas: TurnDeltas
     event: Optional[RandomEvent] = None
     narrative: str = ""
+    epitaph: Optional[str] = None
     is_terminal: bool = False

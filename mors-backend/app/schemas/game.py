@@ -22,7 +22,9 @@ class TurnResponse(BaseModel):
     deltas: TurnDeltas
     event: Optional[RandomEvent] = None
     narrative: str
+    epitaph: Optional[str] = None
     is_terminal: bool
+
 
 
 class StateResponse(BaseModel):

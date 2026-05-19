@@ -1,40 +1,69 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 const props = withDefaults(defineProps<{
-  value: number
-  duration?: number
+  delta: number
+  unit?: string
+  decimals?: number
 }>(), {
-  duration: 600,
+  unit: '',
+  decimals: 0,
 })
 
-const display = ref(props.value)
-let raf: number | null = null
+const visible = ref(false)
+const animKey = ref(0)
 
-watch(
-  () => props.value,
-  (newVal, oldVal) => {
-    if (raf) cancelAnimationFrame(raf)
-    const start = oldVal
-    const startTime = performance.now()
+watch(() => props.delta, (newDelta) => {
+  if (newDelta === 0) return
+  visible.value = false
+  requestAnimationFrame(() => {
+    animKey.value++
+    visible.value = true
+    setTimeout(() => { visible.value = false }, 2200)
+  })
+})
 
-    function step(now: number) {
-      const elapsed = now - startTime
-      const progress = Math.min(elapsed / props.duration, 1)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      display.value = start + (newVal - start) * eased
-      if (progress < 1) raf = requestAnimationFrame(step)
-    }
-    raf = requestAnimationFrame(step)
-  }
-)
+const isPositive = computed(() => props.delta > 0)
+const formatted = computed(() => {
+  const sign = props.delta > 0 ? '+' : ''
+  return `${sign}${props.delta.toFixed(props.decimals)}${props.unit}`
+})
 </script>
 
 <template>
-  <span
-    class="font-mono font-medium transition-colors duration-300"
-    :class="value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-ice/40'"
-  >
-    {{ value > 0 ? '+' : '' }}{{ display.toFixed(1) }}
-  </span>
+  <Transition name="delta-float">
+    <span
+      v-if="visible && delta !== 0"
+      :key="animKey"
+      class="delta-indicator text-xs font-mono font-bold pointer-events-none select-none"
+      :class="isPositive ? 'text-success' : 'text-danger'"
+    >
+      {{ formatted }}
+    </span>
+  </Transition>
 </template>
+
+<style scoped>
+.delta-indicator {
+  display: inline-block;
+}
+
+.delta-float-enter-active {
+  animation: delta-rise 2.2s ease-out forwards;
+}
+
+.delta-float-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.delta-float-leave-to {
+  opacity: 0;
+}
+
+@keyframes delta-rise {
+  0%   { opacity: 0; transform: translateY(0px); }
+  15%  { opacity: 1; transform: translateY(-4px); }
+  70%  { opacity: 1; transform: translateY(-10px); }
+  100% { opacity: 0; transform: translateY(-18px); }
+}
+</style>

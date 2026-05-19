@@ -40,8 +40,11 @@ def make_state(**overrides) -> GameState:
 
 class TestStaminaCost:
     def test_base_cost_at_base_altitude_clear(self):
+        # BASE_STAMINA_COST=12, altitude_factor=(1+(5200/8000)^2)=1.4225, oxygen_mod=0.8 (oxygen>50)
+        # 12 * 1.4225 * 1.0 * 0.8 = 13.656
         cost = _stamina_cost(5200, WeatherState.CLEAR, 100.0, 100.0)
-        assert cost == pytest.approx(17.07, rel=1e-3)
+        assert cost == pytest.approx(13.656, rel=1e-3)
+
 
     def test_cost_increases_with_altitude(self):
         low = _stamina_cost(5200, WeatherState.CLEAR, 100.0, 100.0)

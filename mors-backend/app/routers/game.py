@@ -36,6 +36,7 @@ async def turn(request: TurnRequest):
             deltas=result.deltas,
             event=result.event,
             narrative=result.narrative,
+            epitaph=result.epitaph,
             is_terminal=result.is_terminal,
         )
     except ValueError as e:

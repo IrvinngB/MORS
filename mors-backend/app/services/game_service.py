@@ -51,6 +51,7 @@ class GameService:
 
         new_state, deltas = game_engine_process(state, action)
 
+        # Advance weather only if still alive
         if new_state.status.value == "ALIVE":
             next_w = next_weather(WeatherState(new_state.weather))
             reliability = compute_forecast_reliability(
@@ -63,7 +64,8 @@ class GameService:
             new_state.forecast_reliability = reliability
             new_state.weather = next_w
 
-        event = roll_event(new_state)
+        # Roll contextual event — pass last_action for context-aware filtering
+        event = roll_event(new_state, last_action=action_str)
         if event:
             ev_deltas = {
                 "hp_delta": event.get("hp_delta", 0),
@@ -77,24 +79,29 @@ class GameService:
                     setattr(deltas, k, getattr(deltas, k) + v)
 
             if event.get("hp_delta"):
-                new_state.player.hp = max(0.0, min(100.0, new_state.player.hp + event.get("hp_delta", 0)))
+                new_state.player.hp = max(0.0, min(100.0, new_state.player.hp + event["hp_delta"]))
             if event.get("stamina_delta"):
-                new_state.player.stamina = max(0.0, min(100.0, new_state.player.stamina + event.get("stamina_delta", 0)))
+                new_state.player.stamina = max(0.0, min(100.0, new_state.player.stamina + event["stamina_delta"]))
             if event.get("temp_delta"):
-                new_state.player.body_temp = max(0.0, min(45.0, new_state.player.body_temp + event.get("temp_delta", 0)))
+                new_state.player.body_temp = max(0.0, min(45.0, new_state.player.body_temp + event["temp_delta"]))
             if event.get("willpower_delta"):
-                new_state.player.willpower = max(0.0, min(100.0, new_state.player.willpower + event.get("willpower_delta", 0)))
+                new_state.player.willpower = max(0.0, min(100.0, new_state.player.willpower + event["willpower_delta"]))
             if event.get("oxygen_delta"):
-                new_state.consumables.oxygen_pct = max(0.0, min(100.0, new_state.consumables.oxygen_pct + event.get("oxygen_delta", 0)))
+                new_state.consumables.oxygen_pct = max(0.0, min(100.0, new_state.consumables.oxygen_pct + event["oxygen_delta"]))
             if event.get("rope_delta"):
-                new_state.consumables.rope_sections = max(0, new_state.consumables.rope_sections + event.get("rope_delta", 0))
+                new_state.consumables.rope_sections = max(0, new_state.consumables.rope_sections + event["rope_delta"])
 
             if new_state.player.hp <= 0 and new_state.death_cause is None:
-                new_state.status = new_state.status.DEAD if hasattr(new_state.status, 'DEAD') else "DEAD"
+                new_state.status = SessionStatus.DEAD if hasattr(new_state.status, 'DEAD') else new_state.status
                 new_state.death_cause = "DEAD_EXHAUSTION"
+
+        # Final death check
+        if new_state.player.hp <= 0 and new_state.status.value == "ALIVE":
+            new_state.status = new_state.status.__class__("DEAD")
 
         is_terminal = new_state.status.value in ("DEAD", "SUMMIT", "ABANDONED")
 
+        # Generate turn narrative
         narrative = generate_narrative(
             action=action_str,
             deltas=deltas.model_dump(),
@@ -104,14 +111,15 @@ class GameService:
             weather=new_state.weather.value if hasattr(new_state.weather, 'value') else str(new_state.weather),
         )
 
+        # Generate epitaph separately (not appended to narrative)
+        epitaph = None
         if is_terminal and new_state.status.value == "DEAD":
             epitaph = generate_epitaph(
                 death_cause=new_state.death_cause.value if hasattr(new_state.death_cause, 'value') else str(new_state.death_cause),
                 max_altitude=new_state.player.max_altitude_reached,
                 turn=new_state.turn,
-                worst_moment="La voluntad se rindió.",
+                worst_moment="",
             )
-            narrative = f"{narrative}\n\n{epitaph}"
 
         new_state.narrative_log.append(narrative)
         new_state.updated_at = datetime.now(timezone.utc)
@@ -122,6 +130,7 @@ class GameService:
             deltas=deltas,
             event=event,
             narrative=narrative,
+            epitaph=epitaph,
             is_terminal=is_terminal,
         )
 

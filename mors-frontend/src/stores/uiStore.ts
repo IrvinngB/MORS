@@ -7,6 +7,7 @@ export const useUiStore = defineStore('ui', () => {
   const confirmMessage = ref<string>('')
   const showEventBanner = ref(false)
   const eventBannerText = ref<string>('')
+  const eventBannerType = ref<string>('warning') // 'warning' | 'danger' | 'info' | 'success'
 
   function openConfirm(action: string, message: string) {
     confirmAction.value = action
@@ -20,10 +21,12 @@ export const useUiStore = defineStore('ui', () => {
     confirmMessage.value = ''
   }
 
-  function triggerEventBanner(text: string) {
+  function triggerEventBanner(text: string, eventType?: string) {
     eventBannerText.value = text
+    eventBannerType.value = _resolveEventSeverity(eventType ?? '')
     showEventBanner.value = true
-    setTimeout(() => { showEventBanner.value = false }, 3000)
+    const duration = _resolveBannerDuration(eventType ?? '')
+    setTimeout(() => { showEventBanner.value = false }, duration)
   }
 
   return {
@@ -32,8 +35,25 @@ export const useUiStore = defineStore('ui', () => {
     confirmMessage,
     showEventBanner,
     eventBannerText,
+    eventBannerType,
     openConfirm,
     closeConfirm,
     triggerEventBanner,
   }
 })
+
+function _resolveEventSeverity(eventType: string): string {
+  const dangerEvents = ['PULMONARY_EDEMA', 'DEAD_FALL', 'FROSTBITE']
+  const successEvents = ['SECOND_WIND']
+  const infoEvents = ['PARTNER_VISION', 'DISTANT_AVALANCHE']
+  if (dangerEvents.includes(eventType)) return 'danger'
+  if (successEvents.includes(eventType)) return 'success'
+  if (infoEvents.includes(eventType)) return 'info'
+  return 'warning'
+}
+
+function _resolveBannerDuration(eventType: string): number {
+  const criticalEvents = ['PULMONARY_EDEMA', 'O2_REGULATOR_FAIL', 'TENT_COLLAPSE']
+  if (criticalEvents.includes(eventType)) return 5000
+  return 3500
+}
