@@ -4,6 +4,23 @@ import type { GameState, TurnResult } from './types'
 // Override with VITE_API_BASE for dev or split deployments
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
+export class HttpError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'HttpError'
+    this.status = status
+  }
+}
+
+export class SessionExpiredError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'SessionExpiredError'
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -11,7 +28,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error((body as { detail?: string }).detail || `HTTP ${res.status}`)
+    if (res.status === 410) {
+      throw new SessionExpiredError('Session expired')
+    }
+    throw new HttpError(
+      (body as { detail?: string }).detail || `HTTP ${res.status}`,
+      res.status,
+    )
   }
   return res.json() as Promise<T>
 }

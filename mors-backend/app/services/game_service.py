@@ -11,6 +11,11 @@ from app.services.narrative_service import generate_narrative, generate_epitaph,
 from app.services.session_service import SessionService
 
 
+class SessionExpiredError(Exception):
+    """Raised when a session exists but has exceeded its TTL."""
+    pass
+
+
 class GameService:
     def __init__(self) -> None:
         self._repo = MemorySessionRepository.get_instance()
@@ -59,6 +64,8 @@ class GameService:
         return 0.0
 
     def process_turn(self, session_id: str, action_str: str) -> TurnResult:
+        if self._repo.is_expired(session_id):
+            raise SessionExpiredError("Session expired")
         state = self._repo.get(session_id)
         if state is None:
             raise ValueError(f"Session {session_id} not found")
@@ -179,4 +186,6 @@ class GameService:
         )
 
     def get_state(self, session_id: str) -> GameState | None:
+        if self._repo.is_expired(session_id):
+            raise SessionExpiredError("Session expired")
         return self._repo.get(session_id)

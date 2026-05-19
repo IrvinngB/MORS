@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.models.roles_registry import ROLES
 from app.schemas.game import NewGameRequest, NewGameResponse, TurnRequest, TurnResponse
-from app.services.game_service import GameService
+from app.services.game_service import GameService, SessionExpiredError
 
 
 router = APIRouter(prefix="/game", tags=["game"])
@@ -59,6 +59,8 @@ async def turn(request: TurnRequest):
             epitaph=result.epitaph,
             is_terminal=result.is_terminal,
         )
+    except SessionExpiredError:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Session expired")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 
@@ -66,7 +68,10 @@ async def turn(request: TurnRequest):
 @router.get("/state/{session_id}")
 async def get_state(session_id: str):
     service = _get_game_service()
-    state = service.get_state(session_id)
+    try:
+        state = service.get_state(session_id)
+    except SessionExpiredError:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Session expired")
     if state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     return {"state": state}

@@ -50,3 +50,13 @@ class MemorySessionRepository:
     def _is_expired(self, state: GameState) -> bool:
         ttl = timedelta(hours=settings.session_ttl_hours)
         return datetime.now(timezone.utc) - state.updated_at > ttl
+
+    def is_expired(self, session_id: str) -> bool:
+        """Check if a session exists and is expired without deleting it.
+
+        Returns False if session does not exist (not expired, just missing).
+        """
+        state = self._store.get(session_id)
+        if state is None:
+            return False
+        return self._is_expired(state)

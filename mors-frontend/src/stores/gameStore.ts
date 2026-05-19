@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { GameState, TurnDeltas, ActionType } from '@/api/types'
-import { newGame, postTurn, getState, deleteSession } from '@/api/game'
+import { newGame, postTurn, getState, deleteSession, SessionExpiredError } from '@/api/game'
 import { useUiStore } from '@/stores/uiStore'
+import router from '@/router'
 
 export const useGameStore = defineStore('game', () => {
   const state = ref<GameState | null>(null)
@@ -61,6 +62,11 @@ export const useGameStore = defineStore('game', () => {
       lastEvent.value = null
       isTerminal.value = res.state.status !== 'ALIVE'
     } catch (e) {
+      if (e instanceof SessionExpiredError) {
+        localStorage.removeItem('mors_session_id')
+        router.push('/')
+        return
+      }
       error.value = e instanceof Error ? e.message : 'Failed to resume game'
     } finally {
       isLoading.value = false
@@ -86,6 +92,11 @@ export const useGameStore = defineStore('game', () => {
         ui.triggerEventBanner(res.event.narrative, res.event.event_type)
       }
     } catch (e) {
+      if (e instanceof SessionExpiredError) {
+        localStorage.removeItem('mors_session_id')
+        router.push('/')
+        return
+      }
       error.value = e instanceof Error ? e.message : 'Turn failed'
     } finally {
       isLoading.value = false

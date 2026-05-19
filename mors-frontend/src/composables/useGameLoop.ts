@@ -1,6 +1,8 @@
 import { useGameStore } from '@/stores/gameStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { ActionType } from '@/api/types'
+import { SessionExpiredError } from '@/api/game'
+import router from '@/router'
 
 export function useGameLoop() {
   const game = useGameStore()
@@ -24,7 +26,16 @@ export function useGameLoop() {
   async function startOrResume() {
     const stored = localStorage.getItem('mors_session_id')
     if (stored) {
-      await game.resumeGame(stored)
+      try {
+        await game.resumeGame(stored)
+      } catch (e) {
+        if (e instanceof SessionExpiredError) {
+          localStorage.removeItem('mors_session_id')
+          router.push('/')
+          return
+        }
+        throw e
+      }
     } else {
       await game.startGame()
     }
