@@ -1,3 +1,21 @@
-.venv
-mors-frontend/node_modules
-mors-backend/.venv
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node / frontend
+**/node_modules/
+**/dist/
+**/.vite/
+coverage/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
