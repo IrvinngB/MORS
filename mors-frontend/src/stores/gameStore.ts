@@ -13,6 +13,8 @@ export const useGameStore = defineStore('game', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const isTerminal = ref(false)
+  const currentRole = ref<string>('')
+  const roleDisplayName = ref<string>('')
 
   const sessionId = computed(() => state.value?.session_id ?? null)
   const status = computed(() => state.value?.status ?? null)
@@ -28,13 +30,15 @@ export const useGameStore = defineStore('game', () => {
     return 'NORMAL'
   })
 
-  async function startGame() {
+  async function startGame(role?: string) {
     isLoading.value = true
     error.value = null
     try {
-      const res = await newGame()
+      const res = await newGame(role)
       state.value = res.state
       lastNarrative.value = res.narrative
+      currentRole.value = res.state.role ?? ''
+      roleDisplayName.value = res.role_display_name ?? ''
       deltas.value = null
       lastEvent.value = null
       isTerminal.value = false
@@ -110,6 +114,8 @@ export const useGameStore = defineStore('game', () => {
     isLoading,
     error,
     isTerminal,
+    currentRole,
+    roleDisplayName,
     sessionId,
     status,
     turn,

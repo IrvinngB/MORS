@@ -1,4 +1,5 @@
 import random
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from app.models.enums import (
@@ -20,6 +21,16 @@ NORMAL_ALTITUDE_GAIN = 150.0
 DESCENT_ALTITUDE = 200.0
 
 
+@dataclass
+class RoleModifiers:
+    """Data-driven role modifiers passed to the engine. All defaults = classic behavior."""
+    stamina_cost_multiplier: float = 1.0
+    fall_chance_multiplier: float = 1.0
+    altitude_threshold: int = 0
+    altitude_stamina_discount: float = 1.0
+    free_heal_amount: int = 0
+
+
 def _oxygen_mod(oxygen_pct: float) -> float:
     if oxygen_pct > 50:
         return 0.8
@@ -39,12 +50,13 @@ def _stamina_cost(
     weather: WeatherState,
     oxygen_pct: float,
     willpower: float,
+    stamina_cost_multiplier: float = 1.0,
 ) -> float:
     altitude_factor = 1 + (altitude / 8000) ** 2
     weather_mod = WEATHER_MODIFIERS[weather]
     ox_mod = _oxygen_mod(oxygen_pct)
     wp_mod = _willpower_penalty(willpower)
-    return BASE_STAMINA_COST * altitude_factor * weather_mod * ox_mod * wp_mod
+    return BASE_STAMINA_COST * altitude_factor * weather_mod * ox_mod * wp_mod * stamina_cost_multiplier
 
 
 def _night_penalty(is_night: bool) -> float:
@@ -121,18 +133,29 @@ def _process_action(
     state: GameState,
     action: ActionType,
     is_night: bool,
+    role_mod: RoleModifiers | None = None,
 ) -> tuple[GameState, TurnDeltas]:
+    if role_mod is None:
+        role_mod = RoleModifiers()
+
     new_state = state.model_copy(deep=True)
     deltas = TurnDeltas()
     new_state.turn += 1
 
     weather = WeatherState(state.weather) if isinstance(state.weather, str) else state.weather
     weather_mod = WEATHER_MODIFIERS[weather]
+
+    # Check Técnico altitude discount
+    altitude_mult = role_mod.stamina_cost_multiplier
+    if role_mod.altitude_threshold > 0 and new_state.player.altitude >= role_mod.altitude_threshold:
+        altitude_mult *= role_mod.altitude_stamina_discount
+
     stamina_cost = _stamina_cost(
         new_state.player.altitude,
         weather,
         new_state.consumables.oxygen_pct,
         new_state.player.willpower,
+        stamina_cost_multiplier=altitude_mult,
     )
     night_mult = _night_penalty(is_night)
 
@@ -162,6 +185,8 @@ def _process_action(
 
                 fall_chance = 0.05 + max(0, (100 - new_state.player.stamina) / 100 * 0.3) * weather_mod
                 fall_chance *= (1 - min(0.3, new_state.route_secured * 0.1))
+                # Apply Sherpa fall resistance multiplier
+                fall_chance *= role_mod.fall_chance_multiplier
                 if random.random() < fall_chance:
                     # Fall causes damage but does NOT directly kill — let passive damage handle death
                     fall_damage = 20.0 + random.uniform(0, 15.0)
@@ -227,10 +252,16 @@ def _process_action(
             deltas.temp_delta = 0.3
             deltas.willpower_delta = -3.0
 
+        case ActionType.USE_FREE_HEAL:
+            if role_mod.free_heal_amount > 0 and not new_state.free_heal_used:
+                deltas.hp_delta = role_mod.free_heal_amount
+                new_state.free_heal_used = True
+            # If already used or no heal ability, no-op (no error)
+
     # Apply stamina delta and clamp
     new_state.player.stamina = max(0.0, min(100.0, new_state.player.stamina + deltas.stamina_delta))
 
-    # Apply HP delta from action (fall damage etc)
+    # Apply HP delta from action (fall damage, free heal etc)
     if deltas.hp_delta != 0:
         new_state.player.hp = max(0.0, min(100.0, new_state.player.hp + deltas.hp_delta))
 
@@ -332,10 +363,35 @@ def _tick(state: GameState, deltas: TurnDeltas, is_night: bool) -> None:
         state.route_secured = max(0, state.route_secured - 1)
 
 
+def _build_role_modifiers(state: GameState) -> RoleModifiers:
+    """Build RoleModifiers from GameState role field. Data-driven, no hardcoded if/else."""
+    from app.models.roles_registry import ROLES
+    from app.models.roles import RoleSpecialAbility
+
+    if not state.role or state.role not in ROLES:
+        return RoleModifiers()
+
+    role_def = ROLES[state.role]
+    mod = RoleModifiers(
+        stamina_cost_multiplier=role_def.stamina_cost_multiplier,
+    )
+
+    if role_def.special_ability == RoleSpecialAbility.SHERPA_FALL_RESISTANCE:
+        mod.fall_chance_multiplier = role_def.ability_params.get("fall_chance_multiplier", 1.0)
+    elif role_def.special_ability == RoleSpecialAbility.TECNICO_ALTITUDE_DISCOUNT:
+        mod.altitude_threshold = role_def.ability_params.get("altitude_threshold", 0)
+        mod.altitude_stamina_discount = role_def.ability_params.get("stamina_discount", 1.0)
+    elif role_def.special_ability == RoleSpecialAbility.MEDICO_FREE_HEAL:
+        mod.free_heal_amount = role_def.ability_params.get("free_heal_amount", 0)
+
+    return mod
+
+
 def process(state: GameState, action: ActionType) -> tuple[GameState, TurnDeltas]:
     is_night = state.turn % 24 >= 12
+    role_mod = _build_role_modifiers(state)
 
-    new_state, deltas = _process_action(state, action, is_night)
+    new_state, deltas = _process_action(state, action, is_night, role_mod=role_mod)
 
     _tick(new_state, deltas, is_night)
 

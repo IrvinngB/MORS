@@ -9,6 +9,21 @@ export type ActionType =
   | 'EAT'
   | 'DESCEND'
   | 'REST'
+  | 'USE_FREE_HEAL'
+
+export interface RoleDefinition {
+  id: string
+  display_name: string
+  difficulty: 'Easy' | 'Medium' | 'Normal' | 'Hard'
+  hp_delta: number
+  stamina_delta: number
+  willpower_delta: number
+  stamina_cost_multiplier: number
+  starting_equipment: Record<string, number>
+  special_ability: string
+  ability_params: Record<string, unknown>
+  description: string
+}
 
 export interface PlayerStats {
   hp: number
@@ -43,6 +58,8 @@ export interface GameState {
   narrative_log: string[]
   created_at: string
   updated_at: string
+  role: string
+  free_heal_used: boolean
 }
 
 export interface TurnDeltas {

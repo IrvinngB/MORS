@@ -10,6 +10,7 @@ class ActionType(str, Enum):
     EAT = "EAT"
     DESCEND = "DESCEND"
     REST = "REST"
+    USE_FREE_HEAL = "USE_FREE_HEAL"
 
 
 class WeatherState(str, Enum):

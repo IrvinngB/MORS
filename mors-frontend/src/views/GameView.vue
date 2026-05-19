@@ -90,7 +90,15 @@ function onGoToMenu() {
         <span class="hidden sm:inline">Menú</span>
       </button>
 
-      <TurnCounter />
+      <div class="flex items-center gap-3">
+        <span
+          v-if="game.currentRole"
+          class="text-xs px-2 py-0.5 rounded-full bg-mors/20 text-mors border border-mors/30 font-medium tracking-wide"
+        >
+          {{ game.roleDisplayName || game.currentRole }}
+        </span>
+        <TurnCounter />
+      </div>
 
       <button
         v-if="game.isTerminal"

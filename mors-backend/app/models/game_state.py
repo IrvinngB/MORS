@@ -44,6 +44,8 @@ class GameState(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     turns_without_stamina_recovery: int = 0
+    role: str = Field(default="")
+    free_heal_used: bool = Field(default=False)
 
     model_config = {"use_enum_values": True}
 

@@ -4,12 +4,11 @@ import { useGameLoop } from '@/composables/useGameLoop'
 import { useRouter } from 'vue-router'
 
 const game = useGameStore()
-const { startFresh, startOrResume } = useGameLoop()
+const { startOrResume } = useGameLoop()
 const router = useRouter()
 
-async function onStart() {
-  await startFresh()
-  if (game.sessionId) router.push('/game')
+function onStart() {
+  router.push('/role-selection')
 }
 
 async function onContinue() {

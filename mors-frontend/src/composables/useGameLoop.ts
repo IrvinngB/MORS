@@ -33,9 +33,9 @@ export function useGameLoop() {
     }
   }
 
-  async function startFresh() {
+  async function startFresh(role?: string) {
     localStorage.removeItem('mors_session_id')
-    await game.startGame()
+    await game.startGame(role)
     if (game.sessionId) {
       localStorage.setItem('mors_session_id', game.sessionId)
     }

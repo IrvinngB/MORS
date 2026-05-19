@@ -18,10 +18,16 @@ export interface NewGameResponse {
   session_id: string
   state: GameState
   narrative: string
+  role_display_name?: string
+  role_difficulty?: string
 }
 
-export function newGame(): Promise<NewGameResponse> {
-  return request<NewGameResponse>('/game/new', { method: 'POST' })
+export function newGame(role?: string): Promise<NewGameResponse> {
+  const body = role ? JSON.stringify({ role }) : undefined
+  return request<NewGameResponse>('/game/new', {
+    method: 'POST',
+    ...(body && { body }),
+  })
 }
 
 export interface TurnRequest {

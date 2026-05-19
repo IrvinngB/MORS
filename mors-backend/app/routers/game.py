@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
-from app.schemas.game import NewGameResponse, TurnRequest, TurnResponse
+from app.models.roles_registry import ROLES
+from app.schemas.game import NewGameRequest, NewGameResponse, TurnRequest, TurnResponse
 from app.services.game_service import GameService
 
 
@@ -16,13 +17,32 @@ def _get_game_service() -> GameService:
 
 
 @router.post("/new", response_model=NewGameResponse, status_code=status.HTTP_201_CREATED)
-async def new_game():
+async def new_game(request: NewGameRequest | None = None):
     service = _get_game_service()
-    state, narrative = service.new_game()
+    role_id = request.role if request else ""
+
+    # Validate role if provided
+    if role_id and role_id not in ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown role: {role_id}",
+        )
+
+    state, narrative = service.new_game(role_id=role_id)
+
+    role_display_name = ""
+    role_difficulty = ""
+    if role_id and role_id in ROLES:
+        role_def = ROLES[role_id]
+        role_display_name = role_def.display_name
+        role_difficulty = role_def.difficulty
+
     return NewGameResponse(
         session_id=state.session_id,
         state=state,
         narrative=narrative,
+        role_display_name=role_display_name,
+        role_difficulty=role_difficulty,
     )
 
 

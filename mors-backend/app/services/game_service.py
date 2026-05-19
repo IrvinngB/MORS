@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 
 from app.core import game_engine_process, next_weather, generate_forecast, compute_forecast_reliability
-from app.models.enums import ActionType, WeatherState
+from app.models.enums import ActionType, SessionStatus, WeatherState
 from app.models.game_state import GameState, TurnDeltas, TurnResult
+from app.models.roles import RoleSpecialAbility
+from app.models.roles_registry import ROLES
 from app.repositories.memory_repo import MemorySessionRepository
 from app.services.event_service import roll_event
 from app.services.narrative_service import generate_narrative, generate_epitaph
@@ -14,14 +16,23 @@ class GameService:
         self._repo = MemorySessionRepository.get_instance()
         self._session_service = SessionService()
 
-    def new_game(self) -> tuple[GameState, str]:
-        state = self._session_service.create_session()
+    def new_game(self, role_id: str = "") -> tuple[GameState, str]:
+        state = self._session_service.create_session(role_id=role_id)
 
         initial_weather = WeatherState.CLEAR
-        forecast = generate_forecast(initial_weather, 1.0)
+        # Apply forecast reliability bonus for Investigador
+        forecast_bonus = 0.0
+        if role_id and role_id in ROLES:
+            role_def = ROLES[role_id]
+            if role_def.special_ability == RoleSpecialAbility.INVESTIGATOR_FORECAST:
+                forecast_bonus = role_def.ability_params.get("forecast_reliability_bonus", 0.0)
+
+        base_reliability = 1.0
+        forecast_reliability = min(1.0, base_reliability + forecast_bonus)
+        forecast = generate_forecast(initial_weather, forecast_reliability)
         state.weather = initial_weather
         state.weather_forecast = forecast
-        state.forecast_reliability = 1.0
+        state.forecast_reliability = forecast_reliability
         self._repo.save(state)
 
         intro_narrative = generate_narrative(
@@ -36,6 +47,15 @@ class GameService:
         self._repo.save(state)
 
         return state, intro_narrative
+
+    def _get_hp_mitigation(self, state: GameState) -> float:
+        """Get HP event mitigation factor from role. Returns 0.0 (no mitigation) by default."""
+        if not state.role or state.role not in ROLES:
+            return 0.0
+        role_def = ROLES[state.role]
+        if role_def.special_ability == RoleSpecialAbility.MEDICO_FREE_HEAL:
+            return role_def.ability_params.get("hp_event_mitigation", 0.0)
+        return 0.0
 
     def process_turn(self, session_id: str, action_str: str) -> TurnResult:
         state = self._repo.get(session_id)
@@ -59,6 +79,13 @@ class GameService:
                 new_state.turn % 24 >= 12,
                 WeatherState(new_state.weather),
             )
+            # Apply forecast reliability bonus (Investigador)
+            if new_state.role and new_state.role in ROLES:
+                role_def = ROLES[new_state.role]
+                if role_def.special_ability == RoleSpecialAbility.INVESTIGATOR_FORECAST:
+                    bonus = role_def.ability_params.get("forecast_reliability_bonus", 0.0)
+                    reliability = min(1.0, reliability + bonus)
+
             forecast = generate_forecast(next_w, reliability)
             new_state.weather_forecast = forecast
             new_state.forecast_reliability = reliability
@@ -67,6 +94,14 @@ class GameService:
         # Roll contextual event — pass last_action for context-aware filtering
         event = roll_event(new_state, last_action=action_str)
         if event:
+            # Apply HP event mitigation (Medico)
+            hp_mitigation = self._get_hp_mitigation(new_state)
+            raw_hp_delta = event.get("hp_delta", 0)
+            if raw_hp_delta and hp_mitigation > 0:
+                # Reduce damage: damage × (1 - mitigation)
+                mitigated_hp = raw_hp_delta * (1 - hp_mitigation)
+                event["hp_delta"] = mitigated_hp
+
             ev_deltas = {
                 "hp_delta": event.get("hp_delta", 0),
                 "stamina_delta": event.get("stamina_delta", 0),

@@ -6,10 +6,16 @@ from pydantic import BaseModel
 from app.models.game_state import GameState, TurnDeltas, RandomEvent
 
 
+class NewGameRequest(BaseModel):
+    role: str = ""
+
+
 class NewGameResponse(BaseModel):
     session_id: str
     state: GameState
     narrative: str
+    role_display_name: str = ""
+    role_difficulty: str = ""
 
 
 class TurnRequest(BaseModel):
