@@ -1,0 +1,7 @@
+irvincodes.dev {
+    # Proxy API requests to backend
+    reverse_proxy /game/* backend:8000
+
+    # Serve frontend for everything else
+    reverse_proxy frontend:80
+}

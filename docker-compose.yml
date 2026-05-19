@@ -9,12 +9,6 @@ services:
       - "8000"
     environment:
       - PYTHONUNBUFFERED=1
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
   frontend:
     build:
@@ -22,8 +16,21 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: kaal-frontend
     restart: unless-stopped
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:alpine
+    container_name: kaal-caddy
+    restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
     depends_on:
-      backend:
-        condition: service_healthy
+      - frontend
+
+volumes:
+  caddy_data:
