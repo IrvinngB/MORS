@@ -34,23 +34,29 @@ function buttonLabel(action: ActionDef) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <h2 class="text-xs uppercase tracking-widest text-ice mb-1">Acciones</h2>
+  <div class="flex flex-col gap-4">
+    <h2 class="text-xs uppercase tracking-[0.2em] text-ice/60 font-medium">Acciones</h2>
+    
     <div class="flex flex-col gap-2">
       <button
         v-for="action in actions"
         :key="action.id"
-        class="px-3 py-2 rounded border transition text-left"
+        class="group relative px-4 py-3 rounded-lg border transition-all duration-200 text-left overflow-hidden"
         :class="[
           game.isLoading
-            ? 'opacity-50 cursor-not-allowed border-ice/30 text-ice'
-            : 'border-glacier/50 text-snow hover:bg-glacier/20',
+            ? 'opacity-40 cursor-not-allowed border-white/5 bg-white/[0.02]'
+            : action.costly
+              ? 'border-warning/30 bg-warning/[0.03] hover:border-warning/50 hover:bg-warning/[0.06]'
+              : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]',
         ]"
         :disabled="game.isLoading"
         @click="executeAction(action.id)"
       >
-        <p class="text-sm font-medium">{{ buttonLabel(action) }}</p>
-        <p class="text-xs text-ice">{{ action.description }}</p>
+        <!-- Hover glow effect -->
+        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+        
+        <p class="text-sm font-medium text-snow relative z-10">{{ buttonLabel(action) }}</p>
+        <p class="text-xs text-ice/40 mt-0.5 relative z-10">{{ action.description }}</p>
       </button>
     </div>
   </div>

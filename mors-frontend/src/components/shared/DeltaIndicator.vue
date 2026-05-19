@@ -32,8 +32,8 @@ watch(
 
 <template>
   <span
-    class="font-mono transition-colors duration-300"
-    :class="value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-snow'"
+    class="font-mono font-medium transition-colors duration-300"
+    :class="value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-ice/40'"
   >
     {{ value > 0 ? '+' : '' }}{{ display.toFixed(1) }}
   </span>

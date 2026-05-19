@@ -1,0 +1,3 @@
+.venv
+mors-frontend/node_modules
+mors-backend/.venv

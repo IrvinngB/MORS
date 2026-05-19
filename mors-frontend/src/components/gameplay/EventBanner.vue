@@ -15,9 +15,9 @@ const ui = useUiStore()
   >
     <div
       v-if="ui.showEventBanner"
-      class="fixed top-24 left-1/2 -translate-x-1/2 bg-warning text-peak px-6 py-3 rounded-lg shadow-lg z-50"
+      class="fixed top-20 left-1/2 -translate-x-1/2 glass-strong px-6 py-3 rounded-lg shadow-2xl z-50 border border-warning/30"
     >
-      <p class="text-sm font-bold">{{ ui.eventBannerText }}</p>
+      <p class="text-sm font-medium text-warning">{{ ui.eventBannerText }}</p>
     </div>
   </Transition>
 </template>

@@ -56,16 +56,6 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes fade-in-slow {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
 @keyframes snow-drift {
   0% { transform: translateY(-10px) translateX(0); opacity: 0; }
   10% { opacity: 0.8; }
@@ -73,21 +63,8 @@ body {
   100% { transform: translateY(100vh) translateX(20px); opacity: 0; }
 }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
 .animate-fade-in {
   animation: fade-in 0.6s ease-out forwards;
-}
-
-.animate-fade-in-slow {
-  animation: fade-in-slow 1.2s ease-out forwards;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 /* Snow particle effect */
@@ -112,50 +89,4 @@ body {
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Button base styles */
-.btn-primary {
-  @apply px-6 py-3 bg-glacier/90 text-mors font-semibold rounded-lg 
-         hover:bg-glacier transition-all duration-200 
-         focus:outline-none focus:ring-2 focus:ring-glacier/50 focus:ring-offset-2 focus:ring-offset-mors
-         disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.btn-secondary {
-  @apply px-6 py-3 border border-snow/20 text-snow font-medium rounded-lg 
-         hover:bg-snow/5 hover:border-snow/40 transition-all duration-200
-         focus:outline-none focus:ring-2 focus:ring-snow/30 focus:ring-offset-2 focus:ring-offset-mors;
-}
-
-.btn-danger {
-  @apply px-6 py-3 bg-danger/90 text-snow font-semibold rounded-lg 
-         hover:bg-danger transition-all duration-200
-         focus:outline-none focus:ring-2 focus:ring-danger/50 focus:ring-offset-2 focus:ring-offset-mors;
-}
-
-/* Card styles */
-.card {
-  @apply glass rounded-xl p-4 transition-all duration-200;
-}
-
-.card-hover {
-  @apply card hover:bg-white/5 hover:border-white/15;
-}
-
-/* Stat bar glow effects */
-.stat-bar-glow-danger {
-  box-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
-}
-
-.stat-bar-glow-warning {
-  box-shadow: 0 0 8px rgba(243, 156, 18, 0.4);
-}
-
-.stat-bar-glow-success {
-  box-shadow: 0 0 8px rgba(39, 174, 96, 0.4);
-}
-
-.stat-bar-glow-glacier {
-  box-shadow: 0 0 8px rgba(116, 185, 255, 0.4);
 }
