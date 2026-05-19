@@ -1,0 +1,161 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-snow: #f0f4f8;
+  --color-ice: #c8d6e5;
+  --color-glacier: #74b9ff;
+  --color-peak: #2d3436;
+  --color-danger: #e74c3c;
+  --color-warning: #f39c12;
+  --color-success: #27ae60;
+  --color-mors: #0a0a14;
+  --color-death-zone: #c0392b;
+  --color-abyss: #050508;
+  --color-frost: #a8d8ea;
+  --color-storm: #636e72;
+}
+
+/* Base styles */
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-mors);
+  color: var(--color-snow);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Utility animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in-slow {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes snow-drift {
+  0% { transform: translateY(-10px) translateX(0); opacity: 0; }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.8; }
+  100% { transform: translateY(100vh) translateX(20px); opacity: 0; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.animate-fade-in-slow {
+  animation: fade-in-slow 1.2s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Snow particle effect */
+.snow-particle {
+  position: fixed;
+  width: 2px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: snow-drift linear infinite;
+}
+
+/* Glass morphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Button base styles */
+.btn-primary {
+  @apply px-6 py-3 bg-glacier/90 text-mors font-semibold rounded-lg 
+         hover:bg-glacier transition-all duration-200 
+         focus:outline-none focus:ring-2 focus:ring-glacier/50 focus:ring-offset-2 focus:ring-offset-mors
+         disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply px-6 py-3 border border-snow/20 text-snow font-medium rounded-lg 
+         hover:bg-snow/5 hover:border-snow/40 transition-all duration-200
+         focus:outline-none focus:ring-2 focus:ring-snow/30 focus:ring-offset-2 focus:ring-offset-mors;
+}
+
+.btn-danger {
+  @apply px-6 py-3 bg-danger/90 text-snow font-semibold rounded-lg 
+         hover:bg-danger transition-all duration-200
+         focus:outline-none focus:ring-2 focus:ring-danger/50 focus:ring-offset-2 focus:ring-offset-mors;
+}
+
+/* Card styles */
+.card {
+  @apply glass rounded-xl p-4 transition-all duration-200;
+}
+
+.card-hover {
+  @apply card hover:bg-white/5 hover:border-white/15;
+}
+
+/* Stat bar glow effects */
+.stat-bar-glow-danger {
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+}
+
+.stat-bar-glow-warning {
+  box-shadow: 0 0 8px rgba(243, 156, 18, 0.4);
+}
+
+.stat-bar-glow-success {
+  box-shadow: 0 0 8px rgba(39, 174, 96, 0.4);
+}
+
+.stat-bar-glow-glacier {
+  box-shadow: 0 0 8px rgba(116, 185, 255, 0.4);
+}

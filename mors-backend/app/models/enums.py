@@ -1,0 +1,57 @@
+from enum import Enum
+
+
+class ActionType(str, Enum):
+    ADVANCE_NORMAL = "ADVANCE_NORMAL"
+    ADVANCE_AGGRESSIVE = "ADVANCE_AGGRESSIVE"
+    SECURE_ROUTE = "SECURE_ROUTE"
+    CAMP = "CAMP"
+    USE_OXYGEN = "USE_OXYGEN"
+    EAT = "EAT"
+    DESCEND = "DESCEND"
+    REST = "REST"
+
+
+class WeatherState(str, Enum):
+    CLEAR = "CLEAR"
+    CLOUDY = "CLOUDY"
+    WIND = "WIND"
+    STORM = "STORM"
+    WHITEOUT = "WHITEOUT"
+
+
+class DeathCause(str, Enum):
+    DEAD_EXHAUSTION = "DEAD_EXHAUSTION"
+    DEAD_COLD = "DEAD_COLD"
+    DEAD_FALL = "DEAD_FALL"
+    DEAD_STORM = "DEAD_STORM"
+    DEAD_EDEMA = "DEAD_EDEMA"
+
+
+class SessionStatus(str, Enum):
+    ALIVE = "ALIVE"
+    DEAD = "DEAD"
+    SUMMIT = "SUMMIT"
+    ABANDONED = "ABANDONED"
+
+
+class EventType(str, Enum):
+    DISTANT_AVALANCHE = "DISTANT_AVALANCHE"
+    HALLUCINATION = "HALLUCINATION"
+    WIND_GUST = "WIND_GUST"
+    O2_REGULATOR_FAIL = "O2_REGULATOR_FAIL"
+    FROSTBITE = "FROSTBITE"
+    PULMONARY_EDEMA = "PULMONARY_EDEMA"
+    TENT_COLLAPSE = "TENT_COLLAPSE"
+    PARTNER_VISION = "PARTNER_VISION"
+    EQUIPMENT_DROP = "EQUIPMENT_DROP"
+    SECOND_WIND = "SECOND_WIND"
+
+
+WEATHER_MODIFIERS = {
+    WeatherState.CLEAR: 1.0,
+    WeatherState.CLOUDY: 1.2,
+    WeatherState.WIND: 1.5,
+    WeatherState.STORM: 2.0,
+    WeatherState.WHITEOUT: 3.0,
+}
