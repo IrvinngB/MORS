@@ -7,7 +7,7 @@ from app.models.roles import RoleSpecialAbility
 from app.models.roles_registry import ROLES
 from app.repositories.memory_repo import MemorySessionRepository
 from app.services.event_service import roll_event
-from app.services.narrative_service import generate_narrative, generate_epitaph
+from app.services.narrative_service import generate_narrative, generate_epitaph, generate_summit_narrative
 from app.services.session_service import SessionService
 
 
@@ -42,6 +42,7 @@ class GameService:
             willpower=state.player.willpower,
             altitude=state.player.altitude,
             weather=state.weather.value if hasattr(state.weather, 'value') else str(state.weather),
+            role=role_id,
         )
         state.narrative_log.append(intro_narrative)
         self._repo.save(state)
@@ -136,7 +137,7 @@ class GameService:
 
         is_terminal = new_state.status.value in ("DEAD", "SUMMIT", "ABANDONED")
 
-        # Generate turn narrative
+        # Generate turn narrative — pass role for voice modifier
         narrative = generate_narrative(
             action=action_str,
             deltas=deltas.model_dump(),
@@ -144,9 +145,10 @@ class GameService:
             willpower=new_state.player.willpower,
             altitude=new_state.player.altitude,
             weather=new_state.weather.value if hasattr(new_state.weather, 'value') else str(new_state.weather),
+            role=new_state.role,
         )
 
-        # Generate epitaph separately (not appended to narrative)
+        # Generate epitaph or summit narrative separately (not appended to narrative)
         epitaph = None
         if is_terminal and new_state.status.value == "DEAD":
             epitaph = generate_epitaph(
@@ -154,6 +156,13 @@ class GameService:
                 max_altitude=new_state.player.max_altitude_reached,
                 turn=new_state.turn,
                 worst_moment="",
+                role=new_state.role,
+            )
+        elif is_terminal and new_state.status.value == "SUMMIT":
+            epitaph = generate_summit_narrative(
+                role=new_state.role,
+                stamina=new_state.player.stamina,
+                hp=new_state.player.hp,
             )
 
         new_state.narrative_log.append(narrative)

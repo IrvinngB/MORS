@@ -2,7 +2,132 @@ import random
 from app.core.config import settings
 
 
-# ── Introducción ────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════
+# ROLE VOICE MODIFIERS
+# Each role has a distinct narrative voice — not rewritten text,
+# but tone modifiers (prefix/suffix) that alter how the same
+# action feels from that role's perspective.
+# ═══════════════════════════════════════════════════════════════
+
+ROLE_VOICE: dict[str, dict] = {
+    "sherpa": {
+        "prefixes": [
+            "",  # 40% no prefix — not every line needs it
+            "",
+            "",
+            "El hielo cede. ",
+            "Buen paso. ",
+            "La montaña nos habla. ",
+        ],
+        "suffixes": [
+            "",
+            "",
+            " El camino es claro.",
+            " Mis pies conocen este hielo.",
+            " Otro paso, otro respiro.",
+        ],
+    },
+    "clasico": {
+        "prefixes": [
+            "",
+            "",
+            "",
+            "Sin ayuda. ",
+            "Como debe ser. ",
+            "Solo con mi voluntad. ",
+        ],
+        "suffixes": [
+            "",
+            "",
+            " Sin atajos.",
+            " El purismo tiene su precio.",
+            " La montaña no regala nada.",
+        ],
+    },
+    "investigador": {
+        "prefixes": [
+            "",
+            "",
+            "",
+            "Observo: ",
+            "Datos: ",
+            "La ciencia dice: ",
+        ],
+        "suffixes": [
+            "",
+            "",
+            " La evidencia confirma mis hipótesis.",
+            " Condiciones dentro de los parámetros esperados.",
+            " Anoto mentalmente cada detalle.",
+        ],
+    },
+    "tecnico": {
+        "prefixes": [
+            "",
+            "",
+            "",
+            "Ángulo de placa: manejable. ",
+            "La técnica importa. ",
+            "Equipo revisado. ",
+        ],
+        "suffixes": [
+            "",
+            "",
+            " La cuerda aguanta.",
+            " Cada nudo, una promesa.",
+            " El equipo no falla si lo cuidas.",
+        ],
+    },
+    "medico": {
+        "prefixes": [
+            "",
+            "",
+            "",
+            "Diagnóstico: ",
+            "Noto en mi cuerpo: ",
+            "Signos vitales estables. ",
+        ],
+        "suffixes": [
+            "",
+            "",
+            " El cuerpo aguanta, por ahora.",
+            " Monitoreo cada síntoma.",
+            " La medicina no sirve de mucho aquí, pero la disciplina sí.",
+        ],
+    },
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# MOUNTAINEERING QUOTES (replace Latin phrases)
+# Real quotes from real climbers. These appear at the end of
+# epitaphs and summit narratives for authenticity.
+# ═══════════════════════════════════════════════════════════════
+
+MOUNTAINEERING_QUOTES = [
+    '"Las grandes montañas no son justas o injustas, simplemente son peligrosas." — Reinhold Messner',
+    '"La aventura es vivir y no perder la vida; el arte del alpinismo es no morir." — Reinhold Messner',
+    '"El mundo vertical no termina nunca. Dura. Espera." — Jerzy Kukuczka',
+    '"Tuve la sensación de que, al entrar en ese mundo helado, cruzaba una frontera más allá de la cual no pertenecía al mundo humano." — Jerzy Kukuczka',
+    '"La montaña no es como los humanos. La montaña es sincera." — Walter Bonatti',
+    '"No me ha quedado el horror de caer, sino la alegría de volar." — Walter Bonatti',
+    '"Voy a la montaña solo. Si no regreso, solo me pierdo yo." — Buntaro Kato',
+    '"Las montañas no son estadios donde satisfago mi ambición, son las catedrales donde practico mi religión." — Anatoli Boukreev',
+    '"El alpinista es un hombre que conduce su cuerpo allá donde un día sus ojos lo soñaron." — Gaston Rébuffat',
+    '"Llegar a la cima es opcional, regresar al campo base es obligatorio." — Ed Viesturs',
+    '"Porque está ahí." — George Mallory',
+    '"No es la montaña lo que conquistamos, sino a nosotros mismos." — Edmund Hillary',
+    '"A la montaña hay que llevar el miedo, para que nos mantenga vivos." — Ueli Steck',
+    '"No busco la muerte, pero no me importa morir en las montañas." — Wanda Rutkiewicz',
+    '"El alpinismo es un juego en el que el castigo por cometer un error es la muerte." — Mark Twight',
+    '"El precio de la vida es la vida misma." — Reinhold Messner',
+]
+
+
+# ═══════════════════════════════════════════════════════════════
+# INTRODUCCIÓN
+# ═══════════════════════════════════════════════════════════════
+
 INTRO_TEMPLATES = [
     "La niebla del valle se mezcla con el silencio. El K2 aguarda, inmutable.",
     "El viento arrastra los últimos vestigios de la planicie. La montaña te llama.",
@@ -123,8 +248,21 @@ REST = [
     "Un respiro. La montaña no espera, pero tu cuerpo sí lo necesita.",
 ]
 
-# ── Willpower bajo ──────────────────────────────────────────────
-LOW_WILLPOWER = [
+# ── Free Heal (Medico) ──────────────────────────────────────────
+FREE_HEAL = [
+    "Te aplicas un vendaje de emergencia. Las manos tiemblan, pero la técnica es precisa.",
+    "Inyectas lo que queda de analgésico. El dolor retrocede, no desaparece.",
+    "Primeros auxilios de fortuna. Funciona lo suficiente para seguir.",
+    "Tu entrenamiento médico vale más que cualquier equipo aquí arriba.",
+]
+
+
+# ═══════════════════════════════════════════════════════════════
+# WILLPOWER TIERS (4 levels now, was 3)
+# ═══════════════════════════════════════════════════════════════
+
+# DESPAIR (< 15): fragmented, broken
+LOW_WILLPOWER_DESPAIR = [
     "La mente vagabundea. El suelo parece más cercano de lo que debería.",
     "La voluntad se erosiona. Cada paso es una duda.",
     "Piensas en rendirte. No es un pensamiento nuevo, pero hoy pesa más.",
@@ -133,7 +271,68 @@ LOW_WILLPOWER = [
     "El silencio te habla. Dice cosas que no quieres escuchar.",
 ]
 
-# ── Zona de la Muerte ───────────────────────────────────────────
+# PURPOSE DOUBT (15–50): questioning why, not whether
+LOW_WILLPOWER_DOUBT = [
+    "¿Por qué estoy aquí? La pregunta no tiene respuesta, solo eco.",
+    "La cima ya no parece una meta. Parece una excusa.",
+    "Miras hacia arriba y no sabes si es ambición o estupidez.",
+    "El cuerpo sigue, pero la mente empieza a negociar.",
+    "Recuerdas por qué viniste. El recuerdo se siente de otra persona.",
+    "Cada paso es una pregunta sin respuesta.",
+]
+
+# Normal (>= 50): no override needed
+
+
+# ═══════════════════════════════════════════════════════════════
+# SUMMIT NARRATIVE (victory)
+# ═══════════════════════════════════════════════════════════════
+
+SUMMIT_NARRATIVE = {
+    "default": [
+        "La cima. 8611 metros. El mundo entero bajo tus pies.",
+        "Llegaste. El K2, el asesino, el salvaje — rendido ante tu voluntad.",
+        "8611 metros. Cada paso del camino te trajo aquí. Ahora el cielo es tu techo.",
+        "La cima del K2. Donde otros murieron, tú llegaste.",
+    ],
+    "sherpa": [
+        "La cima. 8611 metros. La montaña que guiaste con pasos conocidos.",
+        "Llegaste. El K2 no es un enemigo para quien lo conoce. Es un camino.",
+        "8611 metros. Tus pies saben lo que otros solo sueñan.",
+    ],
+    "clasico": [
+        "La cima. 8611 metros. Sin oxígeno, sin atajos, sin ayuda. Solo tú.",
+        "Llegaste. El purismo tiene su recompensa: la cima del K2, sin trampas.",
+        "8611 metros. Cada metro fue tuyo. Nadie te lo regaló.",
+    ],
+    "investigador": [
+        "La cima. 8611 metros. Los datos confirman lo que la intuición sabía.",
+        "Llegaste. La montaña, analizada, comprendida, conquistada con conocimiento.",
+        "8611 metros. La hipótesis era correcta: se puede.",
+    ],
+    "tecnico": [
+        "La cima. 8611 metros. La técnica venció donde la fuerza sola no alcanza.",
+        "Llegaste. Cada nudo, cada crampon, cada decisión técnica — perfecta.",
+        "8611 metros. El equipo no falló. La técnica fue tu salvación.",
+    ],
+    "medico": [
+        "La cima. 8611 metros. Tu cuerpo resistió. Tu mente, también.",
+        "Llegaste. El médico que se curó a sí mismo para alcanzar la cima.",
+        "8611 metros. Signos vitales: vivos. Diagnóstico: victoria.",
+    ],
+}
+
+SUMMIT_CONDITIONS = {
+    "strong": "Llegaste con recursos y energía. La montaña te respetó.",
+    "barely": "Llegaste en los huesos. Cada paso fue una agonía. Pero llegaste.",
+    "miracle": "No deberías haber llegado. Y sin embargo, aquí estás.",
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# ZONA DE LA MUERTE
+# ═══════════════════════════════════════════════════════════════
+
 DEATH_ZONE = [
     "La zona de la muerte no perdona. El cuerpo consume sus propias reservas.",
     "Pasas los 8000 metros. El oxígeno es un lujo y el tiempo se agota.",
@@ -175,7 +374,10 @@ SUFFIXES = {
     ],
 }
 
-# ── Epitafios ───────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════
+# EPITAFIOS
+# ═══════════════════════════════════════════════════════════════
+
 EPITAPHS = {
     "DEAD_EXHAUSTION": [
         "Tu cuerpo se rindió antes que tu voluntad. La montaña respetó tu esfuerzo.",
@@ -209,16 +411,34 @@ EPITAPHS = {
     ],
 }
 
-LATIN_PHRASES = [
-    "Non Omnis Moriar.",
-    "Ad astra per aspera.",
-    "Memento mori.",
-    "Dum spiro, spero.",
-    "Per aspera ad astra.",
-    "Veni, vidi, vici.",
-    "Carpe diem.",
-    "Alea iacta est.",
-]
+# Role-specific epitaph additions (appended after the base epitaph)
+ROLE_EPITAPH_SUFFIX: dict[str, list[str]] = {
+    "sherpa": [
+        "El guía que conocía el camino pero no pudo completarlo.",
+        "La montaña que guiaste tantas veces — esta vez no te dejó pasar.",
+        "Tus pasos se pierden en la nieve, pero el camino queda marcado.",
+    ],
+    "clasico": [
+        "Sin oxígeno, sin atajos, sin ayuda. Como elegiste vivir, elegiste morir.",
+        "El purismo tiene su precio. Lo pagaste con dignidad.",
+        "No buscaste ayuda. No la encontraste. Pero no te arrepentiste.",
+    ],
+    "investigador": [
+        "Los datos no pudieron predecir esto. La montaña es impredecible.",
+        "Tu última observación: la altitud gana siempre. Eventualmente.",
+        "La hipótesis era incorrecta. La montaña no se puede analizar, solo respetar.",
+    ],
+    "tecnico": [
+        "El equipo no falló. La técnica fue perfecta. La montaña, simplemente, es más fuerte.",
+        "Cada nudo estaba bien hecho. Cada crampon, bien clavado. No fue suficiente.",
+        "La técnica te llevó lejos. Pero hay límites que ningún equipo cruza.",
+    ],
+    "medico": [
+        "El médico que no pudo curarse a sí mismo.",
+        "Sabías exactamente qué estaba pasando en tu cuerpo. Eso no lo hizo más fácil.",
+        "Tu último diagnóstico: la montaña gana. Siempre gana.",
+    ],
+}
 
 
 def _select_from_list(lst: list[str], seed: int | None = None) -> str:
@@ -250,20 +470,47 @@ def _get_weather_category(weather: str) -> str:
 
 def _apply_willpower_voice(text: str, willpower: float) -> str:
     """Degrade narrative prose quality based on willpower level."""
+    if willpower >= 50:
+        return text  # Normal: no degradation
     if willpower >= 30:
-        return text  # Normal/high willpower: no degradation
+        # PURPOSE DOUBT: adds a questioning undertone
+        if random.random() < 0.3:
+            return text + " ¿Para qué?"
+        return text
+    if willpower >= 15:
+        # DOUBT: shortens and adds uncertainty
+        sentences = text.split(". ")
+        if len(sentences) > 1:
+            return sentences[0] + "."
+        return text + " Tal vez."
+    # DESPAIR: fragments the sentence, adds ellipsis and repetition
+    words = text.split()
+    if len(words) > 8:
+        truncated = " ".join(words[:6])
+        return f"{truncated}... no importa."
+    return f"{text}..."
+
+
+def _apply_role_voice(text: str, role: str, willpower: float) -> str:
+    """Apply role-specific voice modifier (prefix/suffix) to narrative text.
+    
+    This is NOT a rewrite — it's a tone overlay. The same action feels different
+    depending on who's experiencing it.
+    """
+    if not role or role not in ROLE_VOICE:
+        return text
+
+    voice = ROLE_VOICE[role]
+
+    # Low willpower reduces the chance of voice modifiers (mind is too broken for persona)
     if willpower < 15:
-        # DESPAIR: fragments the sentence, adds ellipsis and repetition
-        words = text.split()
-        if len(words) > 8:
-            truncated = " ".join(words[:6])
-            return f"{truncated}... no importa."
-        return f"{text}..."
-    # DOUBT: shortens and adds uncertainty
-    sentences = text.split(". ")
-    if len(sentences) > 1:
-        return sentences[0] + "."
-    return text
+        if random.random() < 0.7:  # 70% chance to skip voice at despair
+            return text
+
+    prefix = _select_from_list(voice["prefixes"])
+    suffix = _select_from_list(voice["suffixes"])
+
+    return f"{prefix}{text}{suffix}"
 
 
 def generate_narrative(
@@ -273,24 +520,27 @@ def generate_narrative(
     willpower: float,
     altitude: float,
     weather: str,
+    role: str = "",
 ) -> str:
     """Generate composed contextual narrative for a turn.
     
     Narrative structure:
-    [action narrative] + optional [delta context] + optional [event narrative]
-    These are separate paragraphs, not a single string.
+    [role voice prefix] + [action narrative] + optional [delta context] + optional [suffix]
+    These are composed into a single paragraph. Event narrative is a separate paragraph.
     """
     altitude_tier = _get_altitude_tier(altitude)
     weather_cat = _get_weather_category(weather)
-    parts: list[str] = []
 
     # --- Action narrative ---
     if willpower < 15:
         # DESPAIR: override with low willpower fragments
-        action_text = _select_from_list(LOW_WILLPOWER)
+        action_text = _select_from_list(LOW_WILLPOWER_DESPAIR)
+    elif willpower < 50:
+        # PURPOSE DOUBT: questioning tone
+        action_text = _select_from_list(LOW_WILLPOWER_DOUBT)
     elif altitude_tier == "death_zone":
         action_text = _select_from_list(DEATH_ZONE)
-    elif weather_cat == "storm" and action not in ("CAMP", "EAT", "USE_OXYGEN"):
+    elif weather_cat == "storm" and action not in ("CAMP", "EAT", "USE_OXYGEN", "USE_FREE_HEAL"):
         action_text = _select_from_list(STORM)
     else:
         action_templates = {
@@ -302,6 +552,7 @@ def generate_narrative(
             "EAT": EAT,
             "DESCEND": DESCEND,
             "REST": REST,
+            "USE_FREE_HEAL": FREE_HEAL,
             "intro": INTRO_TEMPLATES,
         }
         templates = action_templates.get(action, ADVANCE_NORMAL["low"])
@@ -309,7 +560,9 @@ def generate_narrative(
 
     # Apply willpower voice degradation
     action_text = _apply_willpower_voice(action_text, willpower)
-    parts.append(action_text)
+
+    # Apply role voice modifier
+    action_text = _apply_role_voice(action_text, role, willpower)
 
     # --- Delta context (only meaningful changes) ---
     delta_parts = []
@@ -326,7 +579,7 @@ def generate_narrative(
 
     if delta_parts and random.random() < 0.6:
         delta_text = _apply_willpower_voice(" ".join(delta_parts), willpower)
-        parts[0] = parts[0] + " " + delta_text
+        action_text = action_text + " " + delta_text
 
     # --- Contextual suffix ---
     if willpower < 20:
@@ -342,7 +595,9 @@ def generate_narrative(
     if random.random() < suffix_chance:
         suffix = _select_from_list(suffix_pool)
         suffix = _apply_willpower_voice(suffix, willpower)
-        parts[0] = parts[0] + " " + suffix
+        action_text = action_text + " " + suffix
+
+    parts = [action_text]
 
     # --- Event narrative (separate paragraph, if any) ---
     if event:
@@ -353,19 +608,42 @@ def generate_narrative(
     return "\n\n".join(parts)
 
 
+def generate_summit_narrative(role: str = "", stamina: float = 100.0, hp: float = 100.0) -> str:
+    """Generate narrative for reaching the summit. Varies by role and condition."""
+    role_texts = SUMMIT_NARRATIVE.get(role, SUMMIT_NARRATIVE["default"])
+    base = _select_from_list(role_texts)
+
+    # Condition suffix
+    condition_score = (stamina + hp) / 2
+    if condition_score > 60:
+        condition = SUMMIT_CONDITIONS["strong"]
+    elif condition_score > 25:
+        condition = SUMMIT_CONDITIONS["barely"]
+    else:
+        condition = SUMMIT_CONDITIONS["miracle"]
+
+    quote = _select_from_list(MOUNTAINEERING_QUOTES)
+
+    return f"{base} {condition}\n\n{quote}"
+
+
 def generate_epitaph(
     death_cause: str,
     max_altitude: float,
     turn: int,
     worst_moment: str = "",
+    role: str = "",
 ) -> str:
-    """Generate a poetic epitaph for the fallen climber."""
+    """Generate a poetic epitaph for the fallen climber. Varies by role."""
     cause_epitaphs = EPITAPHS.get(death_cause, EPITAPHS["default"])
     base = _select_from_list(cause_epitaphs)
-    latin = _select_from_list(LATIN_PHRASES)
 
-    # Build contextual epitaph
     parts = [base]
+
+    # Role-specific epitaph addition
+    if role and role in ROLE_EPITAPH_SUFFIX:
+        role_suffix = _select_from_list(ROLE_EPITAPH_SUFFIX[role])
+        parts.append(role_suffix)
 
     if max_altitude >= 8000:
         parts.append(f"Llegaste a la zona de la muerte ({max_altitude:.0f}m).")
@@ -379,6 +657,8 @@ def generate_epitaph(
     if worst_moment:
         parts.append(worst_moment)
 
-    parts.append(latin)
+    # Real mountaineering quote instead of Latin
+    quote = _select_from_list(MOUNTAINEERING_QUOTES)
+    parts.append(quote)
 
     return " ".join(parts)
