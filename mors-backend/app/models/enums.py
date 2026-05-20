@@ -11,6 +11,7 @@ class ActionType(str, Enum):
     DESCEND = "DESCEND"
     REST = "REST"
     USE_FREE_HEAL = "USE_FREE_HEAL"
+    TOGGLE_OXYGEN = "TOGGLE_OXYGEN"
 
 
 class WeatherState(str, Enum):

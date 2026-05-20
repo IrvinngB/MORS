@@ -145,8 +145,11 @@ class TestEventDefinitions:
     def test_all_events_have_narrative(self):
         for event_type, data in EVENT_DEFINITIONS.items():
             assert "narrative" in data
-            assert isinstance(data["narrative"], str)
+            assert isinstance(data["narrative"], list)
             assert len(data["narrative"]) > 0
+            for text in data["narrative"]:
+                assert isinstance(text, str)
+                assert len(text) > 0
 
     def test_all_events_have_at_least_one_effect(self):
         effect_keys = {"hp_delta", "stamina_delta", "willpower_delta", "oxygen_delta", "temp_delta", "rope_delta"}

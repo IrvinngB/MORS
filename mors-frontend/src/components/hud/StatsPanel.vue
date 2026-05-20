@@ -76,6 +76,22 @@ const wpVal     = computed(() => animatedValues.value.willpower ?? game.state?.p
           <DeltaIndicator :delta="game.deltas?.willpower_delta ?? 0" :decimals="1" />
         </div>
       </div>
+
+      <!-- Fatigue Warning Badge -->
+      <div 
+        v-if="game.state?.player.consecutive_aggressive_actions" 
+        class="flex items-center justify-between px-3 py-2 rounded-xl border border-danger/20 bg-danger/5 text-xs text-danger animate-pulse mt-1"
+      >
+        <div class="flex items-center gap-1.5 font-medium">
+          <svg class="w-3.5 h-3.5 text-danger" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>Fatiga Acumulada</span>
+        </div>
+        <span class="font-mono font-bold bg-danger/10 px-1.5 py-0.5 rounded text-danger">
+          +{{ game.state.player.consecutive_aggressive_actions * 10 }}% Costo
+        </span>
+      </div>
     </div>
   </div>
 </template>

@@ -85,6 +85,119 @@ const actions = computed<ActionDef[]>(() => [
 
 const willpowerState = computed(() => game.willpowerState)
 
+const WEATHER_MODIFIERS: Record<string, number> = {
+  CLEAR: 1.0,
+  CLOUDY: 1.2,
+  WIND: 1.5,
+  STORM: 2.0,
+  WHITEOUT: 3.0,
+}
+
+const estimateStaminaCost = computed(() => {
+  if (!game.state) return null
+  const player = game.state.player
+  const consumables = game.state.consumables
+  
+  const alt = player.altitude
+  const altFactor = 1 + Math.pow(alt / 8000, 2)
+  const weather = game.state.weather
+  const weatherMod = WEATHER_MODIFIERS[weather] ?? 1.0
+  
+  let oxMod = 1.0
+  const o2 = consumables.oxygen_pct
+  const valve = consumables.oxygen_valve_open
+  if (valve && o2 > 0) {
+    oxMod = 0.75
+  } else {
+    let baseMod = 1.0
+    if (o2 > 50) baseMod = 0.8
+    else if (o2 < 30) baseMod = 1.4
+    
+    if (alt >= 7000) {
+      oxMod = baseMod * 1.3
+    } else {
+      oxMod = baseMod
+    }
+  }
+  
+  const wp = player.willpower
+  const wpMod = wp < 20 ? 1.15 : 1.0
+  
+  let roleMult = 1.0
+  const role = game.state.role
+  if (role === 'sherpa') {
+    roleMult = 0.9
+  } else if (role === 'clasico') {
+    roleMult = 1.1
+  } else if (role === 'tecnico' && alt >= 7000) {
+    roleMult = 0.7
+  }
+  
+  const totalMod = altFactor * weatherMod * oxMod * wpMod * roleMult
+  const baseCost = 15.0 * totalMod
+  
+  return {
+    base: baseCost,
+    factors: {
+      altFactor,
+      weatherMod,
+      oxMod,
+      wpMod,
+      roleMult,
+    }
+  }
+})
+
+function getActionCost(actionId: ActionType): number | null {
+  if (!estimateStaminaCost.value || !game.state) return null
+  const baseCost = estimateStaminaCost.value.base
+  const consecutive = game.state.player.consecutive_aggressive_actions ?? 0
+  
+  if (actionId === 'ADVANCE_NORMAL') {
+    return Math.round(baseCost * 1.0)
+  }
+  if (actionId === 'ADVANCE_AGGRESSIVE') {
+    return Math.round(baseCost * 1.5 * (1 + consecutive * 0.1))
+  }
+  if (actionId === 'SECURE_ROUTE') {
+    return Math.round(baseCost * 0.8)
+  }
+  if (actionId === 'DESCEND') {
+    return Math.round(baseCost * 0.3)
+  }
+  return null
+}
+
+function getActionTooltip(actionId: ActionType): string {
+  const est = estimateStaminaCost.value
+  if (!est || !game.state) return ''
+  const cost = getActionCost(actionId)
+  if (cost === null) return ''
+  
+  const consecutive = game.state.player.consecutive_aggressive_actions ?? 0
+  
+  let breakdown = `Estimación del costo de Stamina: ~${cost}\n`
+  breakdown += `• Base: 15\n`
+  breakdown += `• Altitud: x${est.factors.altFactor.toFixed(2)}\n`
+  if (est.factors.weatherMod !== 1.0) breakdown += `• Clima: x${est.factors.weatherMod.toFixed(1)}\n`
+  if (est.factors.oxMod !== 1.0) breakdown += `• Oxígeno: x${est.factors.oxMod.toFixed(2)}\n`
+  if (est.factors.wpMod !== 1.0) breakdown += `• Voluntad: x${est.factors.wpMod.toFixed(2)}\n`
+  if (est.factors.roleMult !== 1.0) breakdown += `• Rol: x${est.factors.roleMult.toFixed(2)}\n`
+  
+  if (actionId === 'ADVANCE_AGGRESSIVE') {
+    breakdown += `• Esfuerzo Agresivo: x1.5\n`
+    if (consecutive > 0) {
+      breakdown += `• Fatiga acumulada: +${consecutive * 10}%\n`
+    }
+  } else if (actionId === 'SECURE_ROUTE') {
+    breakdown += `• Asegurar Ruta: x0.8\n`
+  } else if (actionId === 'DESCEND') {
+    breakdown += `• Descenso: x0.3\n`
+  }
+  
+  return breakdown.trim()
+}
+
 function getLabel(action: ActionDef): string {
   if (willpowerState.value === 'DESPAIR') return action.labelDespair
   if (willpowerState.value === 'DOUBT') return action.labelDoubt
@@ -109,7 +222,8 @@ function getLabel(action: ActionDef): string {
       <button
         v-for="action in actions"
         :key="action.id"
-        id="action-{{ action.id }}"
+        :id="'action-' + action.id"
+        :title="getActionTooltip(action.id)"
         class="group relative px-4 py-3 rounded-lg border transition-all duration-200 text-left overflow-hidden"
         :class="[
           game.isLoading
@@ -125,17 +239,27 @@ function getLabel(action: ActionDef): string {
         <!-- Hover glow effect -->
         <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
 
-        <p
-          class="text-sm font-medium relative z-10 transition-all duration-500"
-          :class="
-            willpowerState === 'DESPAIR' ? 'text-danger/70' :
-            willpowerState === 'DOUBT'   ? 'text-ice/60' :
-                                           'text-snow'
-          "
-        >
-          {{ getLabel(action) }}
-        </p>
-        <p class="text-xs text-ice/40 mt-0.5 relative z-10">{{ action.description }}</p>
+        <div class="flex justify-between items-start relative z-10">
+          <div>
+            <p
+              class="text-sm font-medium transition-all duration-500"
+              :class="
+                willpowerState === 'DESPAIR' ? 'text-danger/70' :
+                willpowerState === 'DOUBT'   ? 'text-ice/60' :
+                                               'text-snow'
+              "
+            >
+              {{ getLabel(action) }}
+            </p>
+            <p class="text-xs text-ice/40 mt-0.5">{{ action.description }}</p>
+          </div>
+          <!-- Stamina cost indicator -->
+          <div v-if="getActionCost(action.id) !== null" class="text-right flex items-center">
+            <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-ice/60 group-hover:text-snow transition-colors duration-200">
+              ⚡ {{ getActionCost(action.id) }}
+            </span>
+          </div>
+        </div>
       </button>
     </div>
   </div>

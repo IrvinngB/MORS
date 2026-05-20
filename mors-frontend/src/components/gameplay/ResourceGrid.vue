@@ -48,6 +48,10 @@ const resources = computed(() => [
     warning: (c.value?.oxygen_pct ?? 0) <= 40,
   },
 ])
+
+function toggleOxygen() {
+  game.takeTurn('TOGGLE_OXYGEN')
+}
 </script>
 
 <template>
@@ -107,6 +111,24 @@ const resources = computed(() => [
             "
             :style="{ width: `${Math.min(100, (res.value / res.max) * 100)}%` }"
           />
+        </div>
+
+        <!-- Oxygen Valve Toggle Button (Only for oxygen card) -->
+        <div v-if="res.id === 'oxygen'" class="mt-2.5 flex items-center justify-between gap-2 border-t border-white/5 pt-2.5">
+          <span class="text-[9px] uppercase tracking-wider text-ice/40 font-medium">Válvula</span>
+          <button 
+            @click.stop="toggleOxygen"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold border transition-all duration-300 active:scale-95"
+            :class="
+              c?.oxygen_valve_open 
+                ? 'border-success/40 bg-success/10 text-success hover:bg-success/15 shadow-[0_0_10px_rgba(46,204,113,0.1)]' 
+                : 'border-white/10 bg-white/5 text-ice/50 hover:bg-white/10'
+            "
+            :disabled="game.isLoading"
+          >
+            <span class="w-1.5 h-1.5 rounded-full" :class="c?.oxygen_valve_open ? 'bg-success animate-pulse' : 'bg-ice/30'" />
+            {{ c?.oxygen_valve_open ? 'ABIERTA' : 'CERRADA' }}
+          </button>
         </div>
       </div>
     </div>

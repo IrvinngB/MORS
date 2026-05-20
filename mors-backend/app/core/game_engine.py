@@ -31,12 +31,19 @@ class RoleModifiers:
     free_heal_amount: int = 0
 
 
-def _oxygen_mod(oxygen_pct: float) -> float:
+def _oxygen_mod(oxygen_pct: float, altitude: float, valve_open: bool = False) -> float:
+    if valve_open and oxygen_pct > 0:
+        return 0.75
+    
+    base_mod = 1.0
     if oxygen_pct > 50:
-        return 0.8
+        base_mod = 0.8
     elif oxygen_pct < 30:
-        return 1.4
-    return 1.0
+        base_mod = 1.4
+        
+    if altitude >= 7000.0:
+        return base_mod * 1.3
+    return base_mod
 
 
 def _willpower_penalty(willpower: float) -> float:
@@ -50,11 +57,12 @@ def _stamina_cost(
     weather: WeatherState,
     oxygen_pct: float,
     willpower: float,
+    oxygen_valve_open: bool = False,
     stamina_cost_multiplier: float = 1.0,
 ) -> float:
     altitude_factor = 1 + (altitude / 8000) ** 2
     weather_mod = WEATHER_MODIFIERS[weather]
-    ox_mod = _oxygen_mod(oxygen_pct)
+    ox_mod = _oxygen_mod(oxygen_pct, altitude, oxygen_valve_open)
     wp_mod = _willpower_penalty(willpower)
     return BASE_STAMINA_COST * altitude_factor * weather_mod * ox_mod * wp_mod * stamina_cost_multiplier
 
@@ -86,13 +94,20 @@ def _willpower_delta(
     turns_above_8000: int,
     is_night: bool,
     weather: WeatherState,
+    oxygen_flowing: bool = False,
 ) -> float:
     base = 0.5
     altitude_factor = (altitude - STARTING_ALTITUDE) / 1000.0
     night_factor = 0.3 if is_night else 0.0
     death_zone_factor = turns_above_8000 * 0.15
 
-    delta = -(base + altitude_factor * 0.1 + night_factor + death_zone_factor)
+    alt_penalty = altitude_factor * 0.1
+    dz_penalty = death_zone_factor
+    if oxygen_flowing:
+        alt_penalty *= 0.5
+        dz_penalty *= 0.5
+
+    delta = -(base + alt_penalty + night_factor + dz_penalty)
     if weather == WeatherState.WHITEOUT:
         delta -= 1.0
     return max(delta, -15.0)
@@ -140,7 +155,12 @@ def _process_action(
 
     new_state = state.model_copy(deep=True)
     deltas = TurnDeltas()
-    new_state.turn += 1
+    
+    if action != ActionType.TOGGLE_OXYGEN:
+        new_state.turn += 1
+
+    if action != ActionType.ADVANCE_AGGRESSIVE and action != ActionType.TOGGLE_OXYGEN:
+        new_state.player.consecutive_aggressive_actions = 0
 
     weather = WeatherState(state.weather) if isinstance(state.weather, str) else state.weather
     weather_mod = WEATHER_MODIFIERS[weather]
@@ -151,10 +171,11 @@ def _process_action(
         altitude_mult *= role_mod.altitude_stamina_discount
 
     stamina_cost = _stamina_cost(
-        new_state.player.altitude,
-        weather,
-        new_state.consumables.oxygen_pct,
-        new_state.player.willpower,
+        altitude=new_state.player.altitude,
+        weather=weather,
+        oxygen_pct=new_state.consumables.oxygen_pct,
+        willpower=new_state.player.willpower,
+        oxygen_valve_open=new_state.consumables.oxygen_valve_open,
         stamina_cost_multiplier=altitude_mult,
     )
     night_mult = _night_penalty(is_night)
@@ -183,7 +204,10 @@ def _process_action(
                 deltas.altitude_delta = altitude_gain
                 deltas.stamina_delta = -cost
 
-                fall_chance = 0.05 + max(0, (100 - new_state.player.stamina) / 100 * 0.3) * weather_mod
+                new_state.player.consecutive_aggressive_actions += 1
+                consecutive_penalty = new_state.player.consecutive_aggressive_actions * 0.08
+
+                fall_chance = 0.05 + (max(0, (100 - new_state.player.stamina) / 100 * 0.3) + consecutive_penalty) * weather_mod
                 fall_chance *= (1 - min(0.3, new_state.route_secured * 0.1))
                 # Apply Sherpa fall resistance multiplier
                 fall_chance *= role_mod.fall_chance_multiplier
@@ -209,17 +233,29 @@ def _process_action(
             deltas.stamina_delta = recovery
 
             has_gas_for_camp = new_state.consumables.gas_canisters > 0
-            if new_state.consumables.food_rations > 0:
-                new_state.consumables.food_rations -= 1
-                deltas.willpower_delta = 8.0
+            
+            # Camping letal sin gas en tormenta
+            if weather in (WeatherState.STORM, WeatherState.WHITEOUT) and not has_gas_for_camp:
+                deltas.stamina_delta = 0.0
+                deltas.temp_delta = -4.0
+                deltas.hp_delta = -25.0
+                deltas.willpower_delta = -15.0
+                new_state.death_cause = DeathCause.DEAD_COLD
             else:
-                deltas.willpower_delta = 2.0  # Rest still helps willpower even without food
+                if new_state.consumables.food_rations > 0:
+                    new_state.consumables.food_rations -= 1
+                    deltas.willpower_delta = 8.0
+                else:
+                    deltas.willpower_delta = 2.0  # Rest still helps willpower even without food
 
-            if has_gas_for_camp:
-                new_state.consumables.gas_canisters -= 1
+                if has_gas_for_camp:
+                    new_state.consumables.gas_canisters -= 1
 
-            # Temperature recovery: gas provides meaningful heating
-            deltas.temp_delta = _camp_temp_recovery(has_gas_for_camp, weather)
+                # Temperature recovery: gas provides meaningful heating
+                deltas.temp_delta = _camp_temp_recovery(has_gas_for_camp, weather)
+
+        case ActionType.TOGGLE_OXYGEN:
+            new_state.consumables.oxygen_valve_open = not new_state.consumables.oxygen_valve_open
 
 
         case ActionType.USE_OXYGEN:
@@ -264,6 +300,14 @@ def _process_action(
     # Apply HP delta from action (fall damage, free heal etc)
     if deltas.hp_delta != 0:
         new_state.player.hp = max(0.0, min(100.0, new_state.player.hp + deltas.hp_delta))
+
+    # Apply temperature delta from action
+    if deltas.temp_delta != 0:
+        new_state.player.body_temp = max(0.0, min(45.0, new_state.player.body_temp + deltas.temp_delta))
+
+    # Apply willpower delta from action
+    if deltas.willpower_delta != 0:
+        new_state.player.willpower = max(0.0, min(100.0, new_state.player.willpower + deltas.willpower_delta))
 
     new_state.player.altitude = max(0.0, new_state.player.altitude + deltas.altitude_delta)
 
@@ -328,18 +372,20 @@ def _tick(state: GameState, deltas: TurnDeltas, is_night: bool) -> None:
     deltas.temp_delta += temp_delta
 
     # Willpower passive decay
+    oxygen_flowing = state.consumables.oxygen_valve_open and state.consumables.oxygen_pct > 0
     wp_delta = _willpower_delta(
         state.player.altitude,
         state.turn,
         state.player.turns_above_8000,
         is_night,
         weather,
+        oxygen_flowing,
     )
     state.player.willpower = max(0.0, min(100.0, state.player.willpower + wp_delta))
     deltas.willpower_delta += wp_delta
 
-    # Oxygen passive drain in death zone
-    if state.player.altitude >= DEATH_ZONE:
+    # Oxygen passive drain if valve is open and above 7000m
+    if state.player.altitude >= 7000.0 and state.consumables.oxygen_valve_open and state.consumables.oxygen_pct > 0:
         o2_drain = 5.0
         old_o2 = state.consumables.oxygen_pct
         state.consumables.oxygen_pct = max(0.0, state.consumables.oxygen_pct - o2_drain)
@@ -393,7 +439,9 @@ def process(state: GameState, action: ActionType) -> tuple[GameState, TurnDeltas
 
     new_state, deltas = _process_action(state, action, is_night, role_mod=role_mod)
 
-    _tick(new_state, deltas, is_night)
+    if action != ActionType.TOGGLE_OXYGEN:
+        _tick(new_state, deltas, is_night)
+        new_state.last_action = action
 
     if new_state.player.hp <= 0 and new_state.status == SessionStatus.ALIVE:
         new_state.status = SessionStatus.DEAD

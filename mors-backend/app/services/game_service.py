@@ -77,6 +77,8 @@ class GameService:
         except ValueError:
             raise ValueError(f"Invalid action: {action_str}")
 
+        prev_event_type = state.last_event_type
+
         new_state, deltas = game_engine_process(state, action)
 
         # Advance weather only if still alive
@@ -138,6 +140,10 @@ class GameService:
                 new_state.status = SessionStatus.DEAD if hasattr(new_state.status, 'DEAD') else new_state.status
                 new_state.death_cause = "DEAD_EXHAUSTION"
 
+            new_state.last_event_type = event.get("event_type")
+        else:
+            new_state.last_event_type = None
+
         # Final death check
         if new_state.player.hp <= 0 and new_state.status.value == "ALIVE":
             new_state.status = new_state.status.__class__("DEAD")
@@ -153,6 +159,8 @@ class GameService:
             altitude=new_state.player.altitude,
             weather=new_state.weather.value if hasattr(new_state.weather, 'value') else str(new_state.weather),
             role=new_state.role,
+            last_event_type=prev_event_type,
+            turn=new_state.turn,
         )
 
         # Generate epitaph or summit narrative separately (not appended to narrative)
@@ -164,6 +172,8 @@ class GameService:
                 turn=new_state.turn,
                 worst_moment="",
                 role=new_state.role,
+                route_secured=new_state.route_secured,
+                turns_above_8000=new_state.player.turns_above_8000,
             )
         elif is_terminal and new_state.status.value == "SUMMIT":
             epitaph = generate_summit_narrative(

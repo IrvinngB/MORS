@@ -15,6 +15,7 @@ class PlayerStats(BaseModel):
     max_altitude_reached: float = Field(default=5200.0, ge=0.0)
     turns_above_8000: int = Field(default=0, ge=0)
     entered_death_zone: bool = Field(default=False)
+    consecutive_aggressive_actions: int = Field(default=0, ge=0)
 
 
 class Consumables(BaseModel):
@@ -22,6 +23,7 @@ class Consumables(BaseModel):
     gas_canisters: int = Field(default=5, ge=0)
     rope_sections: int = Field(default=3, ge=0)
     oxygen_pct: float = Field(default=100.0, ge=0.0, le=100.0)
+    oxygen_valve_open: bool = Field(default=True)
 
 
 class RandomEvent(BaseModel):
@@ -46,6 +48,8 @@ class GameState(BaseModel):
     turns_without_stamina_recovery: int = 0
     role: str = Field(default="")
     free_heal_used: bool = Field(default=False)
+    last_action: Optional[ActionType] = None
+    last_event_type: Optional[str] = None
 
     model_config = {"use_enum_values": True}
 

@@ -171,6 +171,57 @@ class TestGameEngineProcess:
 
     def test_turn_counter_increments(self):
         state = make_state()
-        _, deltas = process(state, ActionType.REST)
+        new_state, deltas = process(state, ActionType.REST)
         assert deltas.altitude_delta == 0.0
         assert deltas.stamina_delta > 0
+        assert new_state.turn == state.turn + 1
+
+
+class TestNewMechanics:
+    def test_toggle_oxygen_does_not_advance_turn(self):
+        """TOGGLE_OXYGEN should flip the valve without advancing the turn counter or weather."""
+        state = make_state()
+        state.consumables.oxygen_valve_open = True
+        state.turn = 10
+        
+        new_state, deltas = process(state, ActionType.TOGGLE_OXYGEN)
+        
+        assert new_state.consumables.oxygen_valve_open is False
+        assert new_state.turn == 10
+        assert deltas.hp_delta == 0.0
+        assert deltas.stamina_delta == 0.0
+
+    def test_camp_lethal_without_gas_in_storm(self):
+        """Camping in STORM/WHITEOUT without gas canisters causes massive damage instead of recovery."""
+        state = make_state()
+        state.weather = WeatherState.STORM
+        state.consumables.gas_canisters = 0
+        state.player.stamina = 50.0
+        state.player.body_temp = 37.0
+        state.player.willpower = 50.0
+        
+        new_state, deltas = process(state, ActionType.CAMP)
+        
+        assert deltas.stamina_delta == 0.0
+        assert deltas.temp_delta <= -4.0
+        assert deltas.hp_delta <= -25.0
+        assert deltas.willpower_delta <= -15.0
+        assert new_state.player.body_temp <= 33.0
+        assert new_state.player.willpower <= 35.0
+
+    def test_consecutive_aggressive_actions_fatigue(self):
+        """Consecutive aggressive advances increase fatigue count; other actions reset it."""
+        state = make_state()
+        assert state.player.consecutive_aggressive_actions == 0
+        
+        # First ADVANCE_AGGRESSIVE
+        state1, _ = process(state, ActionType.ADVANCE_AGGRESSIVE)
+        assert state1.player.consecutive_aggressive_actions == 1
+        
+        # Second ADVANCE_AGGRESSIVE
+        state2, _ = process(state1, ActionType.ADVANCE_AGGRESSIVE)
+        assert state2.player.consecutive_aggressive_actions == 2
+        
+        # Normal advance resets fatigue
+        state3, _ = process(state2, ActionType.ADVANCE_NORMAL)
+        assert state3.player.consecutive_aggressive_actions == 0

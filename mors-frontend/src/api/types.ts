@@ -10,6 +10,7 @@ export type ActionType =
   | 'DESCEND'
   | 'REST'
   | 'USE_FREE_HEAL'
+  | 'TOGGLE_OXYGEN'
 
 export interface RoleDefinition {
   id: string
@@ -34,6 +35,7 @@ export interface PlayerStats {
   max_altitude_reached: number
   turns_above_8000: number
   entered_death_zone: boolean
+  consecutive_aggressive_actions: number
 }
 
 
@@ -42,6 +44,7 @@ export interface Consumables {
   gas_canisters: number
   rope_sections: number
   oxygen_pct: number
+  oxygen_valve_open: boolean
 }
 
 export interface GameState {
