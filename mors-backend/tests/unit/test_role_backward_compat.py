@@ -41,9 +41,10 @@ class TestBackwardCompatibility:
         """Classic game should have default consumables."""
         service = GameService()
         state, _ = service.new_game(role_id="")
-        assert state.consumables.food_rations == 10
-        assert state.consumables.gas_canisters == 5
-        assert state.consumables.rope_sections == 3
+        assert state.consumables.food_rations == 8
+        assert state.consumables.gas_canisters == 3
+        assert state.consumables.rope_sections == 1
+        assert state.consumables.oxygen_tanks == 0
         assert state.consumables.oxygen_pct == 100.0
 
     def test_classic_game_forecast_reliability_is_1_0(self):

@@ -30,6 +30,7 @@ class TurnResponse(BaseModel):
     narrative: str
     epitaph: Optional[str] = None
     is_terminal: bool
+    warnings: list[str] = []
 
 
 

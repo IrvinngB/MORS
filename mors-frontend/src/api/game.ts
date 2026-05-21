@@ -55,16 +55,28 @@ export function newGame(role?: string): Promise<NewGameResponse> {
   })
 }
 
+export type TurnResponse =
+  | { ok: true; data: TurnResult }
+  | { ok: false; error: string }
+
 export interface TurnRequest {
   session_id: string
   action: string
 }
 
-export function postTurn(data: TurnRequest): Promise<TurnResult> {
-  return request<TurnResult>('/game/turn', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
+export async function postTurn(data: TurnRequest): Promise<TurnResponse> {
+  try {
+    const result = await request<TurnResult>('/game/turn', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+    return { ok: true, data: result }
+  } catch (e) {
+    if (e instanceof HttpError && e.status === 422) {
+      return { ok: false, error: e.message }
+    }
+    throw e
+  }
 }
 
 export function getState(sessionId: string): Promise<{ state: GameState }> {

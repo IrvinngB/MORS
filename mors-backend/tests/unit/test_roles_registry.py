@@ -58,7 +58,7 @@ class TestRolesRegistry:
         assert sherpa.hp_delta == 5
         assert sherpa.stamina_delta == 15
         assert sherpa.willpower_delta == -5
-        assert sherpa.starting_equipment.get("rope_sections") == 2
+        assert sherpa.starting_equipment.get("rope_sections") == 4
 
     def test_clasico_has_no_ability(self):
         clasico = ROLES["clasico"]
@@ -72,11 +72,11 @@ class TestRolesRegistry:
         inv = ROLES["investigador"]
         assert inv.special_ability == RoleSpecialAbility.INVESTIGATOR_FORECAST
         assert inv.ability_params["forecast_reliability_bonus"] == 0.25
-        assert inv.hp_delta == -10
-        assert inv.stamina_delta == -15
-        assert inv.willpower_delta == 20
-        assert inv.stamina_cost_multiplier == 1.05
-        assert inv.starting_equipment.get("oxygen_pct") == 10
+        assert inv.hp_delta == -5
+        assert inv.stamina_delta == -5
+        assert inv.willpower_delta == 15
+        assert inv.stamina_cost_multiplier == 1.0
+        assert inv.starting_equipment.get("oxygen_tanks") == 4
 
     def test_tecnico_has_altitude_discount(self):
         tec = ROLES["tecnico"]
@@ -84,8 +84,8 @@ class TestRolesRegistry:
         assert tec.ability_params["altitude_threshold"] == 7000
         assert tec.ability_params["stamina_discount"] == 0.90
         assert tec.stamina_cost_multiplier == 0.95
-        assert tec.starting_equipment.get("rope_sections") == 2
-        assert tec.starting_equipment.get("gas_canisters") == 1
+        assert tec.starting_equipment.get("rope_sections") == 4
+        assert tec.starting_equipment.get("gas_canisters") == 3
         assert tec.hp_delta == 0
         assert tec.stamina_delta == 0
         assert tec.willpower_delta == 0
@@ -95,8 +95,8 @@ class TestRolesRegistry:
         assert med.special_ability == RoleSpecialAbility.MEDICO_FREE_HEAL
         assert med.ability_params["free_heal_amount"] == 15
         assert med.ability_params["hp_event_mitigation"] == 0.20
-        assert med.starting_equipment.get("food_rations") == 2
-        assert med.starting_equipment.get("oxygen_pct") == 10
+        assert med.starting_equipment.get("food_rations") == 4
+        assert med.starting_equipment.get("oxygen_tanks") == 4
         assert med.hp_delta == -5
         assert med.stamina_delta == -10
         assert med.willpower_delta == 15

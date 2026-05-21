@@ -7,7 +7,8 @@ export const useUiStore = defineStore('ui', () => {
   const confirmMessage = ref<string>('')
   const showEventBanner = ref(false)
   const eventBannerText = ref<string>('')
-  const eventBannerType = ref<string>('warning') // 'warning' | 'danger' | 'info' | 'success'
+  const eventBannerType = ref<string>('warning')
+  const actionError = ref<string | null>(null)
 
   function openConfirm(action: string, message: string) {
     confirmAction.value = action
@@ -29,6 +30,15 @@ export const useUiStore = defineStore('ui', () => {
     setTimeout(() => { showEventBanner.value = false }, duration)
   }
 
+  function showActionError(message: string) {
+    actionError.value = message
+    setTimeout(() => { actionError.value = null }, 4000)
+  }
+
+  function clearActionError() {
+    actionError.value = null
+  }
+
   return {
     showConfirmModal,
     confirmAction,
@@ -36,9 +46,12 @@ export const useUiStore = defineStore('ui', () => {
     showEventBanner,
     eventBannerText,
     eventBannerType,
+    actionError,
     openConfirm,
     closeConfirm,
     triggerEventBanner,
+    showActionError,
+    clearActionError,
   }
 })
 

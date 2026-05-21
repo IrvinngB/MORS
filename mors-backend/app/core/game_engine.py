@@ -10,6 +10,49 @@ from app.models.enums import (
     WEATHER_MODIFIERS,
 )
 from app.models.game_state import Consumables, GameState, PlayerStats, TurnDeltas
+from app.models.roles import RoleSpecialAbility
+from app.models.roles_registry import ROLES
+from app.models.roles import RoleSpecialAbility
+
+
+def _validate_action(state: GameState, action: ActionType) -> None:
+    """Validate that an action is possible given the current game state.
+    
+    Raises ValueError with a user-friendly message if the action cannot be performed.
+    """
+    if action == ActionType.EAT and state.consumables.food_rations <= 0:
+        raise ValueError("Sin raciones de comida. No podés comer si no tenés provisiones.")
+    if action == ActionType.USE_OXYGEN and state.consumables.oxygen_tanks <= 0:
+        raise ValueError("Sin tanques de oxígeno. No podés usar oxígeno suplementario sin tanques disponibles.")
+    if action == ActionType.SECURE_ROUTE and state.consumables.rope_sections <= 0:
+        raise ValueError("Sin cuerdas disponibles. No podés asegurar la ruta sin secciones de cuerda.")
+    if action == ActionType.USE_FREE_HEAL:
+        if state.role not in ROLES or ROLES[state.role].special_ability != RoleSpecialAbility.MEDICO_FREE_HEAL:
+            raise ValueError("Tu rol no tiene la habilidad de curación gratuita.")
+        if state.free_heal_used:
+            raise ValueError("Curación gratuita ya utilizada. Solo podés usarla una vez por expedición.")
+    if action in (ActionType.ADVANCE_NORMAL, ActionType.ADVANCE_AGGRESSIVE):
+        weather = WeatherState(state.weather) if isinstance(state.weather, str) else state.weather
+        if weather == WeatherState.WHITEOUT and state.consumables.rope_sections == 0:
+            raise ValueError(
+                "Visibilidad cero por ventisca. No podés avanzar sin una ruta asegurada con cuerdas."
+            )
+
+
+def _check_warnings(state: GameState, action: ActionType) -> list[str]:
+    """Check for non-fatal warnings about action consequences.
+    
+    Returns a list of warning message strings (empty if no warnings).
+    """
+    warnings: list[str] = []
+    weather = WeatherState(state.weather) if isinstance(state.weather, str) else state.weather
+
+    if action == ActionType.CAMP and weather in (WeatherState.STORM, WeatherState.WHITEOUT) and state.consumables.gas_canisters <= 0:
+        warnings.append(
+            "Acampar sin gas en esta tormenta puede ser letal. Tu carpa no resistirá el frío extremo sin calefacción."
+        )
+
+    return warnings
 
 
 SUMMIT_ALTITUDE = 8611.0
@@ -47,9 +90,14 @@ def _oxygen_mod(oxygen_pct: float, altitude: float, valve_open: bool = False) ->
 
 
 def _willpower_penalty(willpower: float) -> float:
-    if willpower < 20:
+    if willpower >= 30:
+        return 1.0
+    elif willpower >= 20:
+        return 1.05
+    elif willpower >= 10:
         return 1.15
-    return 1.0
+    else:
+        return 1.25
 
 
 def _stamina_cost(
@@ -215,7 +263,6 @@ def _process_action(
                     # Fall causes damage but does NOT directly kill — let passive damage handle death
                     fall_damage = 20.0 + random.uniform(0, 15.0)
                     deltas.hp_delta = -fall_damage
-                    new_state.death_cause = DeathCause.DEAD_FALL
 
         case ActionType.SECURE_ROUTE:
             if new_state.consumables.rope_sections > 0:
@@ -240,7 +287,7 @@ def _process_action(
                 deltas.temp_delta = -4.0
                 deltas.hp_delta = -25.0
                 deltas.willpower_delta = -15.0
-                new_state.death_cause = DeathCause.DEAD_COLD
+                new_state.death_cause = DeathCause.DEAD_STORM
             else:
                 if new_state.consumables.food_rations > 0:
                     new_state.consumables.food_rations -= 1
@@ -259,8 +306,8 @@ def _process_action(
 
 
         case ActionType.USE_OXYGEN:
-            if new_state.consumables.gas_canisters > 0:
-                new_state.consumables.gas_canisters -= 1
+            if new_state.consumables.oxygen_tanks > 0:
+                new_state.consumables.oxygen_tanks -= 1
                 new_state.consumables.oxygen_pct = min(100.0, new_state.consumables.oxygen_pct + 30.0)
                 deltas.oxygen_delta = 30.0
                 deltas.willpower_delta = 10.0
@@ -300,10 +347,12 @@ def _process_action(
     # Apply HP delta from action (fall damage, free heal etc)
     if deltas.hp_delta != 0:
         new_state.player.hp = max(0.0, min(100.0, new_state.player.hp + deltas.hp_delta))
+        if action == ActionType.ADVANCE_AGGRESSIVE and new_state.player.hp <= 0 and new_state.death_cause is None:
+            new_state.death_cause = DeathCause.DEAD_FALL
 
     # Apply temperature delta from action
     if deltas.temp_delta != 0:
-        new_state.player.body_temp = max(0.0, min(45.0, new_state.player.body_temp + deltas.temp_delta))
+        new_state.player.body_temp = max(0.0, min(38.0, new_state.player.body_temp + deltas.temp_delta))
 
     # Apply willpower delta from action
     if deltas.willpower_delta != 0:
@@ -317,11 +366,11 @@ def _process_action(
     if new_state.player.altitude >= SUMMIT_ALTITUDE and new_state.player.hp > 0:
         new_state.status = SessionStatus.SUMMIT
 
-    # Death zone: +25 willpower bonus ONLY on first entry
+    # Death zone: +15 willpower bonus ONLY on first entry
     if new_state.player.altitude >= DEATH_ZONE:
         if not new_state.player.entered_death_zone:
-            deltas.willpower_delta += 25.0
-            new_state.player.willpower = min(100.0, new_state.player.willpower + 25.0)
+            deltas.willpower_delta += 15.0
+            new_state.player.willpower = min(100.0, new_state.player.willpower + 15.0)
             new_state.player.entered_death_zone = True
         new_state.player.turns_above_8000 += 1
 
@@ -393,7 +442,7 @@ def _tick(state: GameState, deltas: TurnDeltas, is_night: bool) -> None:
         deltas.oxygen_delta -= actual_drain
 
     # Clamp values
-    state.player.body_temp = max(0.0, min(45.0, state.player.body_temp))
+    state.player.body_temp = max(0.0, min(38.0, state.player.body_temp))
     state.player.willpower = max(0.0, min(100.0, state.player.willpower))
 
     _apply_passive_damage(state, deltas)
@@ -411,9 +460,6 @@ def _tick(state: GameState, deltas: TurnDeltas, is_night: bool) -> None:
 
 def _build_role_modifiers(state: GameState) -> RoleModifiers:
     """Build RoleModifiers from GameState role field. Data-driven, no hardcoded if/else."""
-    from app.models.roles_registry import ROLES
-    from app.models.roles import RoleSpecialAbility
-
     if not state.role or state.role not in ROLES:
         return RoleModifiers()
 
@@ -433,7 +479,14 @@ def _build_role_modifiers(state: GameState) -> RoleModifiers:
     return mod
 
 
-def process(state: GameState, action: ActionType) -> tuple[GameState, TurnDeltas]:
+def process(state: GameState, action: ActionType) -> tuple[GameState, TurnDeltas, list[str]]:
+    """Process a game turn. Returns (new_state, deltas, warnings).
+    
+    Raises ValueError if the action is impossible given current state.
+    """
+    _validate_action(state, action)
+    warnings = _check_warnings(state, action)
+
     is_night = state.turn % 24 >= 12
     role_mod = _build_role_modifiers(state)
 
@@ -448,4 +501,4 @@ def process(state: GameState, action: ActionType) -> tuple[GameState, TurnDeltas
 
     new_state.updated_at = datetime.now(timezone.utc)
 
-    return new_state, deltas
+    return new_state, deltas, warnings

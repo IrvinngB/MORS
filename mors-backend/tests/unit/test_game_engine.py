@@ -103,75 +103,76 @@ class TestNightPenalty:
 class TestGameEngineProcess:
     def test_advance_normal_gains_altitude(self):
         state = make_state()
-        new_state, deltas = process(state, ActionType.ADVANCE_NORMAL)
+        new_state, deltas, _ = process(state, ActionType.ADVANCE_NORMAL)
         assert deltas.altitude_delta > 0
         assert new_state.player.altitude > state.player.altitude
 
     def test_advance_normal_consumes_stamina(self):
         state = make_state()
-        new_state, deltas = process(state, ActionType.ADVANCE_NORMAL)
+        new_state, deltas, _ = process(state, ActionType.ADVANCE_NORMAL)
         assert deltas.stamina_delta < 0
 
     def test_advance_aggressive_gains_more_altitude(self):
         normal_state = make_state()
-        _, normal_deltas = process(normal_state, ActionType.ADVANCE_NORMAL)
+        _, normal_deltas, _ = process(normal_state, ActionType.ADVANCE_NORMAL)
 
         aggressive_state = make_state()
-        _, aggressive_deltas = process(aggressive_state, ActionType.ADVANCE_AGGRESSIVE)
+        _, aggressive_deltas, _ = process(aggressive_state, ActionType.ADVANCE_AGGRESSIVE)
 
         assert aggressive_deltas.altitude_delta > normal_deltas.altitude_delta
 
     def test_descend_reduces_altitude(self):
         state = make_state(player=PlayerStats(altitude=6000.0))
-        new_state, deltas = process(state, ActionType.DESCEND)
+        new_state, deltas, _ = process(state, ActionType.DESCEND)
         assert deltas.altitude_delta < 0
 
     def test_camp_consumes_resources(self):
         state = make_state()
-        new_state, deltas = process(state, ActionType.CAMP)
+        new_state, deltas, _ = process(state, ActionType.CAMP)
         assert new_state.consumables.food_rations < state.consumables.food_rations
 
     def test_eat_requires_food(self):
+        """EAT with no food raises ValueError."""
         state = make_state(consumables=Consumables(food_rations=0))
-        new_state, deltas = process(state, ActionType.EAT)
-        assert deltas.stamina_delta == 0
+        with pytest.raises(ValueError, match="Sin raciones de comida"):
+            process(state, ActionType.EAT)
 
     def test_eat_restores_stamina(self):
         state = make_state(consumables=Consumables(food_rations=5))
-        new_state, deltas = process(state, ActionType.EAT)
+        new_state, deltas, _ = process(state, ActionType.EAT)
         assert deltas.stamina_delta > 0
 
     def test_secured_route_depletes_rope(self):
         state = make_state(consumables=Consumables(rope_sections=3))
-        new_state, deltas = process(state, ActionType.SECURE_ROUTE)
+        new_state, deltas, _ = process(state, ActionType.SECURE_ROUTE)
         assert new_state.consumables.rope_sections == 2
         assert deltas.route_secured_delta > 0
 
     def test_secure_route_increases_route_secured(self):
         state = make_state()
-        new_state, deltas = process(state, ActionType.SECURE_ROUTE)
+        new_state, deltas, _ = process(state, ActionType.SECURE_ROUTE)
         assert new_state.route_secured > state.route_secured
 
     def test_hp_cannot_exceed_100(self):
         state = make_state(player=PlayerStats(hp=100.0, stamina=0.0))
         for _ in range(20):
-            state, _ = process(state, ActionType.REST)
+            state, _, _ = process(state, ActionType.REST)
         assert state.player.hp <= 100.0
 
     def test_hp_cannot_be_negative(self):
         state = make_state(player=PlayerStats(hp=5.0))
-        new_state, _ = process(state, ActionType.ADVANCE_AGGRESSIVE)
+        new_state, _, _ = process(state, ActionType.ADVANCE_AGGRESSIVE)
         assert new_state.player.hp >= 0.0
 
     def test_reaches_summit(self):
         state = make_state(player=PlayerStats(altitude=8600.0))
-        new_state, _ = process(state, ActionType.ADVANCE_NORMAL)
+        new_state, _, _ = process(state, ActionType.ADVANCE_NORMAL)
         assert new_state.player.altitude >= 8611.0
         assert new_state.status == SessionStatus.SUMMIT
 
     def test_turn_counter_increments(self):
         state = make_state()
-        new_state, deltas = process(state, ActionType.REST)
+        new_state, deltas, _ = process(state, ActionType.REST)
         assert deltas.altitude_delta == 0.0
         assert deltas.stamina_delta > 0
         assert new_state.turn == state.turn + 1
@@ -184,7 +185,7 @@ class TestNewMechanics:
         state.consumables.oxygen_valve_open = True
         state.turn = 10
         
-        new_state, deltas = process(state, ActionType.TOGGLE_OXYGEN)
+        new_state, deltas, _ = process(state, ActionType.TOGGLE_OXYGEN)
         
         assert new_state.consumables.oxygen_valve_open is False
         assert new_state.turn == 10
@@ -200,7 +201,7 @@ class TestNewMechanics:
         state.player.body_temp = 37.0
         state.player.willpower = 50.0
         
-        new_state, deltas = process(state, ActionType.CAMP)
+        new_state, deltas, _ = process(state, ActionType.CAMP)
         
         assert deltas.stamina_delta == 0.0
         assert deltas.temp_delta <= -4.0
@@ -215,13 +216,13 @@ class TestNewMechanics:
         assert state.player.consecutive_aggressive_actions == 0
         
         # First ADVANCE_AGGRESSIVE
-        state1, _ = process(state, ActionType.ADVANCE_AGGRESSIVE)
+        state1, _, _ = process(state, ActionType.ADVANCE_AGGRESSIVE)
         assert state1.player.consecutive_aggressive_actions == 1
         
         # Second ADVANCE_AGGRESSIVE
-        state2, _ = process(state1, ActionType.ADVANCE_AGGRESSIVE)
+        state2, _, _ = process(state1, ActionType.ADVANCE_AGGRESSIVE)
         assert state2.player.consecutive_aggressive_actions == 2
         
         # Normal advance resets fatigue
-        state3, _ = process(state2, ActionType.ADVANCE_NORMAL)
+        state3, _, _ = process(state2, ActionType.ADVANCE_NORMAL)
         assert state3.player.consecutive_aggressive_actions == 0

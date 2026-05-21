@@ -58,6 +58,7 @@ async def turn(request: TurnRequest):
             narrative=result.narrative,
             epitaph=result.epitaph,
             is_terminal=result.is_terminal,
+            warnings=result.warnings,
         )
     except SessionExpiredError:
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="Session expired")

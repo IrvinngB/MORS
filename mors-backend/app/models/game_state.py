@@ -19,11 +19,12 @@ class PlayerStats(BaseModel):
 
 
 class Consumables(BaseModel):
-    food_rations: int = Field(default=10, ge=0)
-    gas_canisters: int = Field(default=5, ge=0)
-    rope_sections: int = Field(default=3, ge=0)
+    food_rations: int = Field(default=8, ge=0)
+    gas_canisters: int = Field(default=3, ge=0)
+    oxygen_tanks: int = Field(default=0, ge=0)
+    rope_sections: int = Field(default=1, ge=0)
     oxygen_pct: float = Field(default=100.0, ge=0.0, le=100.0)
-    oxygen_valve_open: bool = Field(default=True)
+    oxygen_valve_open: bool = Field(default=False)
 
 
 class RandomEvent(BaseModel):
@@ -71,3 +72,4 @@ class TurnResult(BaseModel):
     narrative: str = ""
     epitaph: Optional[str] = None
     is_terminal: bool = False
+    warnings: list[str] = Field(default_factory=list)

@@ -51,8 +51,8 @@ class TestSherpaFallResistance:
         normal_state = make_state()
         sherpa_state = make_state(role="sherpa")
 
-        _, normal_deltas = process(normal_state, ActionType.ADVANCE_NORMAL)
-        _, sherpa_deltas = process(sherpa_state, ActionType.ADVANCE_NORMAL)
+        _, normal_deltas, _ = process(normal_state, ActionType.ADVANCE_NORMAL)
+        _, sherpa_deltas, _ = process(sherpa_state, ActionType.ADVANCE_NORMAL)
 
         # Sherpa should lose less stamina (delta is less negative)
         assert sherpa_deltas.stamina_delta > normal_deltas.stamina_delta
@@ -110,7 +110,7 @@ class TestTecnicoAltitudeDiscount:
     def test_tecnico_discount_above_threshold(self):
         """Above 7000m, tecnico gets additional 10% discount."""
         state = make_state(role="tecnico", player=PlayerStats(altitude=7500.0))
-        _, deltas = process(state, ActionType.ADVANCE_NORMAL)
+        _, deltas, _ = process(state, ActionType.ADVANCE_NORMAL)
         # The altitude discount should be applied via _build_role_modifiers
         # which checks altitude >= threshold
         assert deltas.altitude_delta > 0
@@ -133,22 +133,20 @@ class TestMedicoFreeHeal:
             free_heal_used=False,
             player=PlayerStats(hp=50.0),
         )
-        new_state, deltas = process(state, ActionType.USE_FREE_HEAL)
+        new_state, deltas, _ = process(state, ActionType.USE_FREE_HEAL)
         assert deltas.hp_delta == 15
         assert new_state.free_heal_used is True
         assert new_state.player.hp == 65.0
 
     def test_medico_free_heal_second_use_noop(self):
-        """Second use of USE_FREE_HEAL does nothing."""
+        """Second use of USE_FREE_HEAL raises ValueError."""
         state = make_state(
             role="medico",
             free_heal_used=True,
             player=PlayerStats(hp=50.0),
         )
-        new_state, deltas = process(state, ActionType.USE_FREE_HEAL)
-        assert deltas.hp_delta == 0
-        assert new_state.free_heal_used is True
-        assert new_state.player.hp == 50.0
+        with pytest.raises(ValueError, match="Curación gratuita ya utilizada"):
+            process(state, ActionType.USE_FREE_HEAL)
 
     def test_medico_free_heal_caps_at_100(self):
         """Free heal should not exceed 100 HP."""
@@ -157,7 +155,7 @@ class TestMedicoFreeHeal:
             free_heal_used=False,
             player=PlayerStats(hp=90.0),
         )
-        new_state, deltas = process(state, ActionType.USE_FREE_HEAL)
+        new_state, deltas, _ = process(state, ActionType.USE_FREE_HEAL)
         assert new_state.player.hp == 100.0
 
     def test_medico_hp_mitigation(self):
@@ -187,8 +185,8 @@ class TestClasicoNoAbility:
         normal_state = make_state()
         clasico_state = make_state(role="clasico")
 
-        _, normal_deltas = process(normal_state, ActionType.ADVANCE_NORMAL)
-        _, clasico_deltas = process(clasico_state, ActionType.ADVANCE_NORMAL)
+        _, normal_deltas, _ = process(normal_state, ActionType.ADVANCE_NORMAL)
+        _, clasico_deltas, _ = process(clasico_state, ActionType.ADVANCE_NORMAL)
 
         # Clasico should lose more stamina (delta is more negative)
         assert clasico_deltas.stamina_delta < normal_deltas.stamina_delta

@@ -102,8 +102,8 @@ npm run dev          # http://localhost:5173
 | Rol | Dificultad | HP | Stamina | Willpower | Costo Stamina | Especial |
 |---|---|---|---|---|---|---|
 | **Sherpa** | Fácil | +5 | +15 | −5 | ×0.85 | −30% eventos de caída |
-| **Alpinista Clásico** | Difícil | +5 | +5 | +5 | ×1.10 | Ninguna — purismo |
-| **Investigador** | Media | −10 | −15 | +20 | ×1.05 | +25% forecast reliability |
+| **Alpinista Clásico** | Difícil | +5 | +5 | +5 | ×1.10 | Ninguna — purismo (empieza sin tanques O₂ y 1 cuerda) |
+| **Investigador** | Media | −5 | −5 | +15 | ×1.0 | +25% forecast reliability |
 | **Escalador Técnico** | Normal | — | — | — | ×0.95 | −10% costo sobre 7000m |
 | **Médico** | Media | −5 | −10 | +15 | ×1.0 | 1× heal +15HP, −20% daño |
 
@@ -125,7 +125,7 @@ npm run dev          # http://localhost:5173
 | Avanzar Agresivo | +280m, riesgo de caída | Stamina alta |
 | Asegurar Ruta | Protege próximos 3 turnos | 1 cuerda + stamina |
 | Acampar | Recupera stamina/temp | 1 comida + 1 gas |
-| Usar Oxígeno | Recupera O₂ + willpower | 1 gas canister |
+| Usar Oxígeno | Recupera O₂ + willpower | 1 tanque O₂ |
 | Comer | Recupera stamina leve | 1 ración |
 | Descender | −200m, mejora temp | Stamina mínima |
 | Descansar | Recupera stamina en ruta | Willpower leve |
@@ -138,7 +138,7 @@ costo = 12 × (1 + (altitud / 8000)²) × weather_mod × oxygen_mod × willpower
 
 - `weather_mod`: CLEAR=1.0, CLOUDY=1.2, WIND=1.5, STORM=2.0, WHITEOUT=3.0
 - `oxygen_mod`: >50% O₂ → 0.8, <30% → 1.4
-- `willpower_mod`: <20 → 1.15
+- `willpower_mod`: <30 → 1.05, <20 → 1.15, <10 → 1.25
 - `role_mod`: multiplicador según rol elegido
 
 ### Condiciones de Victoria/Derrota

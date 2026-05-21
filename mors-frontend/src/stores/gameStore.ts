@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { GameState, TurnDeltas, ActionType } from '@/api/types'
+import type { GameState, TurnDeltas, ActionType, WeatherState } from '@/api/types'
 import { newGame, postTurn, getState, deleteSession, SessionExpiredError } from '@/api/game'
 import { useUiStore } from '@/stores/uiStore'
 import router from '@/router'
@@ -11,6 +11,7 @@ export const useGameStore = defineStore('game', () => {
   const lastNarrative = ref<string>('')
   const epitaph = ref<string | null>(null)
   const lastEvent = ref<{ event_type: string; narrative: string } | null>(null)
+  const warnings = ref<string[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const isTerminal = ref(false)
@@ -29,6 +30,20 @@ export const useGameStore = defineStore('game', () => {
     if (wp < 15) return 'DESPAIR'
     if (wp < 30) return 'DOUBT'
     return 'NORMAL'
+  })
+
+  const consumables = computed(() => state.value?.consumables)
+  const weather = computed<WeatherState | undefined>(() => state.value?.weather)
+  const role = computed(() => state.value?.role)
+  const freeHealUsed = computed(() => state.value?.free_heal_used ?? false)
+
+  const canEat = computed(() => (consumables.value?.food_rations ?? 0) > 0)
+  const canUseOxygen = computed(() => (consumables.value?.oxygen_tanks ?? 0) > 0)
+  const canSecureRoute = computed(() => (consumables.value?.rope_sections ?? 0) > 0)
+  const canFreeHeal = computed(() => role.value === 'medico' && !freeHealUsed.value)
+  const canAdvance = computed(() => {
+    if (weather.value !== 'WHITEOUT') return true
+    return (consumables.value?.rope_sections ?? 0) > 0
   })
 
   async function startGame(role?: string) {
@@ -56,6 +71,15 @@ export const useGameStore = defineStore('game', () => {
     try {
       const res = await getState(id)
       state.value = res.state
+      currentRole.value = res.state.role ?? ''
+      const roleNames: Record<string, string> = {
+        sherpa: 'Sherpa',
+        clasico: 'Alpinista Clásico',
+        investigador: 'Investigador',
+        tecnico: 'Escalador Técnico',
+        medico: 'Médico de Expedición',
+      }
+      roleDisplayName.value = roleNames[res.state.role] ?? ''
       const log = res.state.narrative_log
       lastNarrative.value = log[log.length - 1] ?? ''
       deltas.value = null
@@ -77,16 +101,23 @@ export const useGameStore = defineStore('game', () => {
     if (!state.value || isLoading.value) return
     isLoading.value = true
     error.value = null
+    warnings.value = []
     try {
-      const res = await postTurn({ session_id: state.value.session_id, action })
+      const response = await postTurn({ session_id: state.value.session_id, action })
+      if (!response.ok) {
+        const ui = useUiStore()
+        ui.showActionError(response.error)
+        return
+      }
+      const res = response.data
       state.value = res.new_state
       deltas.value = res.deltas
       lastNarrative.value = res.narrative
       lastEvent.value = res.event
       epitaph.value = res.epitaph ?? null
+      warnings.value = res.warnings ?? []
       isTerminal.value = res.is_terminal
 
-      // Show event banner if an event occurred
       if (res.event) {
         const ui = useUiStore()
         ui.triggerEventBanner(res.event.narrative, res.event.event_type)
@@ -122,6 +153,7 @@ export const useGameStore = defineStore('game', () => {
     lastNarrative,
     epitaph,
     lastEvent,
+    warnings,
     isLoading,
     error,
     isTerminal,
@@ -135,6 +167,11 @@ export const useGameStore = defineStore('game', () => {
     isNight,
     inDeathZone,
     willpowerState,
+    canEat,
+    canUseOxygen,
+    canSecureRoute,
+    canFreeHeal,
+    canAdvance,
     startGame,
     resumeGame,
     takeTurn,

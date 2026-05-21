@@ -79,7 +79,7 @@ class GameService:
 
         prev_event_type = state.last_event_type
 
-        new_state, deltas = game_engine_process(state, action)
+        new_state, deltas, warnings = game_engine_process(state, action)
 
         # Advance weather only if still alive
         if new_state.status.value == "ALIVE":
@@ -128,7 +128,7 @@ class GameService:
             if event.get("stamina_delta"):
                 new_state.player.stamina = max(0.0, min(100.0, new_state.player.stamina + event["stamina_delta"]))
             if event.get("temp_delta"):
-                new_state.player.body_temp = max(0.0, min(45.0, new_state.player.body_temp + event["temp_delta"]))
+                new_state.player.body_temp = max(0.0, min(38.0, new_state.player.body_temp + event["temp_delta"]))
             if event.get("willpower_delta"):
                 new_state.player.willpower = max(0.0, min(100.0, new_state.player.willpower + event["willpower_delta"]))
             if event.get("oxygen_delta"):
@@ -138,7 +138,13 @@ class GameService:
 
             if new_state.player.hp <= 0 and new_state.death_cause is None:
                 new_state.status = SessionStatus.DEAD if hasattr(new_state.status, 'DEAD') else new_state.status
-                new_state.death_cause = "DEAD_EXHAUSTION"
+                event_type = event.get("event_type", "")
+                if event_type == "PULMONARY_EDEMA":
+                    new_state.death_cause = "DEAD_EDEMA"
+                elif event_type in ("TENT_COLLAPSE", "WIND_GUST"):
+                    new_state.death_cause = "DEAD_STORM"
+                else:
+                    new_state.death_cause = "DEAD_EXHAUSTION"
 
             new_state.last_event_type = event.get("event_type")
         else:
@@ -151,6 +157,8 @@ class GameService:
         is_terminal = new_state.status.value in ("DEAD", "SUMMIT", "ABANDONED")
 
         # Generate turn narrative — pass role for voice modifier
+        # Anti-repetition: pass the last narrative so the engine can avoid repeating
+        last_narrative = state.narrative_log[-1] if state.narrative_log else None
         narrative = generate_narrative(
             action=action_str,
             deltas=deltas.model_dump(),
@@ -161,6 +169,7 @@ class GameService:
             role=new_state.role,
             last_event_type=prev_event_type,
             turn=new_state.turn,
+            last_narrative=last_narrative,
         )
 
         # Generate epitaph or summit narrative separately (not appended to narrative)
@@ -172,8 +181,6 @@ class GameService:
                 turn=new_state.turn,
                 worst_moment="",
                 role=new_state.role,
-                route_secured=new_state.route_secured,
-                turns_above_8000=new_state.player.turns_above_8000,
             )
         elif is_terminal and new_state.status.value == "SUMMIT":
             epitaph = generate_summit_narrative(
@@ -193,6 +200,7 @@ class GameService:
             narrative=narrative,
             epitaph=epitaph,
             is_terminal=is_terminal,
+            warnings=warnings,
         )
 
     def get_state(self, session_id: str) -> GameState | None:

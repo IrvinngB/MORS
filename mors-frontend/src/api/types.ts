@@ -42,6 +42,7 @@ export interface PlayerStats {
 export interface Consumables {
   food_rations: number
   gas_canisters: number
+  oxygen_tanks: number
   rope_sections: number
   oxygen_pct: number
   oxygen_valve_open: boolean
@@ -81,5 +82,6 @@ export interface TurnResult {
   event: { event_type: string; narrative: string } | null
   narrative: string
   epitaph: string | null
+  warnings: string[]
   is_terminal: boolean
 }

@@ -37,7 +37,7 @@ class TestCampRecovery:
         """RF-04.4: CAMP should recover stamina, not drain it."""
         state = make_state(stamina=50.0)
         state.weather = WeatherState.CLEAR
-        new_state, deltas = process(state, ActionType.CAMP)
+        new_state, deltas, _ = process(state, ActionType.CAMP)
         assert new_state.player.stamina > 50.0, (
             f"CAMP should increase stamina from 50, got {new_state.player.stamina}"
         )
@@ -46,7 +46,7 @@ class TestCampRecovery:
         """CAMP in storm should still recover stamina (less than clear)."""
         state = make_state(stamina=50.0)
         state.weather = WeatherState.STORM
-        new_state, deltas = process(state, ActionType.CAMP)
+        new_state, deltas, _ = process(state, ActionType.CAMP)
         # Storm recovery is less but still positive net
         assert deltas.stamina_delta > 0, (
             f"CAMP stamina delta should be positive in storm, got {deltas.stamina_delta}"
@@ -56,7 +56,7 @@ class TestCampRecovery:
         """CAMP consumes food and gas when available."""
         state = make_state(food_rations=5, gas_canisters=3)
         state.weather = WeatherState.CLEAR
-        new_state, deltas = process(state, ActionType.CAMP)
+        new_state, deltas, _ = process(state, ActionType.CAMP)
         assert new_state.consumables.food_rations == 4
         assert new_state.consumables.gas_canisters == 2
 
@@ -64,7 +64,7 @@ class TestCampRecovery:
         """CAMP without food/gas still gives partial recovery."""
         state = make_state(stamina=30.0, food_rations=0, gas_canisters=0)
         state.weather = WeatherState.CLEAR
-        new_state, deltas = process(state, ActionType.CAMP)
+        new_state, deltas, _ = process(state, ActionType.CAMP)
         # Should still recover stamina (base recovery), just less willpower
         assert new_state.player.stamina > 30.0
 
@@ -76,16 +76,16 @@ class TestDeathZoneBonus:
         state.weather = WeatherState.CLEAR
 
         # First advance above 8000m → should get bonus
-        state1, deltas1 = process(state, ActionType.ADVANCE_NORMAL)
+        state1, deltas1, _ = process(state, ActionType.ADVANCE_NORMAL)
         wp_after_first = state1.player.willpower
 
         if state1.player.altitude >= DEATH_ZONE:
             assert state1.player.entered_death_zone is True
 
         # Descend below 8000m
-        state2, _ = process(state1, ActionType.DESCEND)
+        state2, _, _ = process(state1, ActionType.DESCEND)
         # Advance again above 8000m → NO bonus this time
-        state3, deltas3 = process(state2, ActionType.ADVANCE_NORMAL)
+        state3, deltas3, _ = process(state2, ActionType.ADVANCE_NORMAL)
 
         if state3.player.altitude >= DEATH_ZONE:
             # willpower_delta should NOT include the +25 bonus again
@@ -98,15 +98,13 @@ class TestDeathZoneBonus:
 
 class TestWhiteoutBlocking:
     def test_whiteout_blocks_advance_without_rope(self):
-        """WHITEOUT without rope should not allow altitude gain."""
+        """WHITEOUT without rope should raise ValueError (can't advance)."""
         state = make_state(altitude=6000.0)
         state.weather = WeatherState.WHITEOUT
         state.consumables.rope_sections = 0
 
-        new_state, deltas = process(state, ActionType.ADVANCE_NORMAL)
-        assert deltas.altitude_delta == 0.0, (
-            f"WHITEOUT without rope should block advance, got delta: {deltas.altitude_delta}"
-        )
+        with pytest.raises(ValueError, match="Visibilidad cero por ventisca"):
+            process(state, ActionType.ADVANCE_NORMAL)
 
     def test_whiteout_allows_advance_with_rope(self):
         """WHITEOUT with rope available should allow advance."""
@@ -114,7 +112,7 @@ class TestWhiteoutBlocking:
         state.weather = WeatherState.WHITEOUT
         state.consumables.rope_sections = 2
 
-        new_state, deltas = process(state, ActionType.ADVANCE_NORMAL)
+        new_state, deltas, _ = process(state, ActionType.ADVANCE_NORMAL)
         assert deltas.altitude_delta > 0.0, (
             f"WHITEOUT with rope should allow advance, got delta: {deltas.altitude_delta}"
         )
@@ -125,7 +123,7 @@ class TestStaminaTracker:
         """Tracker should increment when stamina decreases."""
         state = make_state(altitude=5500.0)
         state.turns_without_stamina_recovery = 0
-        new_state, deltas = process(state, ActionType.ADVANCE_NORMAL)
+        new_state, deltas, _ = process(state, ActionType.ADVANCE_NORMAL)
         # ADVANCE_NORMAL costs stamina → tracker should increment
         if deltas.stamina_delta <= 0:
             assert new_state.turns_without_stamina_recovery > 0
@@ -135,7 +133,7 @@ class TestStaminaTracker:
         state = make_state(stamina=50.0)
         state.turns_without_stamina_recovery = 15
         state.weather = WeatherState.CLEAR
-        new_state, deltas = process(state, ActionType.CAMP)
+        new_state, deltas, _ = process(state, ActionType.CAMP)
         # CAMP in clear weather gives significant stamina recovery
         assert new_state.turns_without_stamina_recovery == 0, (
             f"After CAMP, tracker should reset, got {new_state.turns_without_stamina_recovery}"
@@ -149,8 +147,8 @@ class TestEatRecovery:
         state_high = make_state(altitude=8200.0, stamina=50.0, food_rations=5)
         state_high.player.entered_death_zone = True
 
-        new_low, deltas_low = process(state_low, ActionType.EAT)
-        new_high, deltas_high = process(state_high, ActionType.EAT)
+        new_low, deltas_low, _ = process(state_low, ActionType.EAT)
+        new_high, deltas_high, _ = process(state_high, ActionType.EAT)
 
         assert deltas_low.stamina_delta > deltas_high.stamina_delta, (
             f"EAT should recover more at low altitude. "
@@ -174,7 +172,7 @@ class TestFallDamage:
             random.seed(seed)
             s = make_state(altitude=6000.0, stamina=5.0, hp=100.0)
             s.weather = WeatherState.CLEAR
-            new_s, deltas = process(s, ActionType.ADVANCE_AGGRESSIVE)
+            new_s, deltas, _ = process(s, ActionType.ADVANCE_AGGRESSIVE)
             if deltas.hp_delta < 0:
                 fell = True
                 # Even after a fall, player should not be DEAD if HP was full
@@ -252,7 +250,7 @@ class TestCompletability:
             else:
                 action = ActionType.ADVANCE_NORMAL
 
-            state, _ = process(state, action)
+            state, _, _ = process(state, action)
 
         return (
             state.status.value,
