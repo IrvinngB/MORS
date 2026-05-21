@@ -22,7 +22,8 @@ const logEntries = computed(() => {
 
 const latestEntry = computed(() => {
   const entries = logEntries.value
-  return entries.length > 0 ? entries[entries.length - 1] : null
+  // After .reverse(), index 0 is the LATEST entry (newest first)
+  return entries.length > 0 ? entries[0] : null
 })
 
 const latestText = computed(() => latestEntry.value?.text ?? '')
