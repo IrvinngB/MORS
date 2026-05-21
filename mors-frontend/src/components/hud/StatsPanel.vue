@@ -31,7 +31,7 @@ const wpVal     = computed(() => animatedValues.value.willpower ?? game.state?.p
           glow-class="stat-bar-glow-danger"
         />
         <div class="absolute right-0 top-0 -mt-4">
-          <DeltaIndicator :delta="game.deltas?.hp_delta ?? 0" :decimals="1" />
+          <DeltaIndicator :delta="game.deltas?.hp_delta ?? 0" delta-type="hp" :decimals="1" />
         </div>
       </div>
 
@@ -44,7 +44,7 @@ const wpVal     = computed(() => animatedValues.value.willpower ?? game.state?.p
           glow-class="stat-bar-glow-warning"
         />
         <div class="absolute right-0 top-0 -mt-4">
-          <DeltaIndicator :delta="game.deltas?.stamina_delta ?? 0" :decimals="1" />
+          <DeltaIndicator :delta="game.deltas?.stamina_delta ?? 0" delta-type="stamina" :decimals="1" />
         </div>
       </div>
 
@@ -61,7 +61,7 @@ const wpVal     = computed(() => animatedValues.value.willpower ?? game.state?.p
           glow-class="stat-bar-glow-glacier"
         />
         <div class="absolute right-0 top-0 -mt-4">
-          <DeltaIndicator :delta="game.deltas?.temp_delta ?? 0" :decimals="2" unit="°C" />
+          <DeltaIndicator :delta="game.deltas?.temp_delta ?? 0" delta-type="temp" :decimals="2" unit="°C" />
         </div>
       </div>
 
@@ -73,7 +73,7 @@ const wpVal     = computed(() => animatedValues.value.willpower ?? game.state?.p
           color="bg-ice"
         />
         <div class="absolute right-0 top-0 -mt-4">
-          <DeltaIndicator :delta="game.deltas?.willpower_delta ?? 0" :decimals="1" />
+          <DeltaIndicator :delta="game.deltas?.willpower_delta ?? 0" delta-type="willpower" :decimals="1" />
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/gameStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -18,6 +19,11 @@ const game = useGameStore()
 const ui = useUiStore()
 const { confirmAction, startFresh } = useGameLoop()
 
+const isStormy = computed(() => {
+  const w = game.state?.weather
+  return w === 'STORM' || w === 'WHITEOUT'
+})
+
 async function onNewGame() {
   await game.endGame()
   localStorage.removeItem('mors_session_id')
@@ -35,18 +41,24 @@ function onGoToMenu() {
     class="min-h-screen text-snow flex flex-col relative overflow-hidden"
     :class="[
       game.inDeathZone
-        ? 'bg-gradient-to-b from-peak via-mors to-death-zone/20'
+        ? 'bg-gradient-to-b from-peak via-mors to-death-zone/20 death-zone-inset'
         : game.isNight
           ? 'bg-gradient-to-b from-abyss via-[#08081a] to-peak/10'
           : 'bg-gradient-to-b from-abyss via-mors to-peak/20',
-      game.willpowerState === 'DESPAIR' ? 'despair-overlay' : ''
+      game.willpowerState === 'DESPAIR' ? 'despair-overlay' : '',
+      isStormy ? 'storm-shake' : '',
     ]"
   >
-    <!-- Night overlay: subtle dark vignette -->
+    <!-- Death zone: thin red border at top -->
+    <div
+      v-if="game.inDeathZone"
+      class="absolute top-0 left-0 right-0 h-px bg-danger/60 animate-pulse z-50"
+    />
+
+    <!-- Night overlay: enhanced vignette -->
     <div
       v-if="game.isNight"
-      class="absolute inset-0 pointer-events-none"
-      style="background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.45) 100%)"
+      class="absolute inset-0 pointer-events-none night-vignette"
     />
 
     <!-- Death zone: snow particles -->
@@ -64,12 +76,6 @@ function onGoToMenu() {
         }"
       />
     </div>
-
-    <!-- Death zone: pulsing red edge -->
-    <div
-      v-if="game.inDeathZone"
-      class="absolute inset-0 pointer-events-none death-zone-pulse"
-    />
 
     <!-- Despair: desaturating overlay -->
     <div
@@ -113,7 +119,7 @@ function onGoToMenu() {
     <main class="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-[300px_1fr_300px] gap-4 p-4 lg:p-6 max-w-7xl mx-auto w-full">
       <!-- Left sidebar -->
       <aside class="flex flex-col gap-4 order-2 lg:order-1">
-        <div class="card">
+        <div class="card" :class="game.inDeathZone ? 'stats-death-zone' : ''">
           <StatsPanel />
         </div>
         <div class="card">
@@ -150,17 +156,6 @@ function onGoToMenu() {
 </template>
 
 <style scoped>
-/* Death zone pulsing border effect */
-.death-zone-pulse {
-  box-shadow: inset 0 0 60px rgba(192, 57, 43, 0.15);
-  animation: death-pulse 3s ease-in-out infinite;
-}
-
-@keyframes death-pulse {
-  0%, 100% { box-shadow: inset 0 0 60px rgba(192, 57, 43, 0.10); }
-  50%       { box-shadow: inset 0 0 80px rgba(192, 57, 43, 0.25); }
-}
-
 /* Despair state: panel with trembling border */
 .despair-panel {
   border-color: rgba(231, 76, 60, 0.3) !important;
@@ -169,11 +164,10 @@ function onGoToMenu() {
 
 @keyframes despair-shake {
   0%, 100% { transform: translateX(0); }
-  92%       { transform: translateX(0); }
-  93%       { transform: translateX(-1px); }
-  94%       { transform: translateX(1px); }
-  95%       { transform: translateX(-1px); }
-  96%       { transform: translateX(0); }
+  92%       { transform: translateX(-1px); }
+  93%       { transform: translateX(1px); }
+  94%       { transform: translateX(-1px); }
+  95%       { transform: translateX(0); }
 }
 
 /* Doubt state: slightly dimmed panel */

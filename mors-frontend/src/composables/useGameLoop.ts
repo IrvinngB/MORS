@@ -9,7 +9,12 @@ export function useGameLoop() {
   const ui = useUiStore()
 
   function executeAction(action: ActionType) {
-    const COSTLY_ACTIONS: ActionType[] = ['ADVANCE_AGGRESSIVE', 'SECURE_ROUTE', 'CAMP']
+    if (action === 'CAMP' && game.isCampLethal) {
+      ui.openConfirm(action, '⚠️ Acampar sin gas en tormenta puede ser LETAL. ¿Confirmar de todos modos?', true)
+      return
+    }
+
+    const COSTLY_ACTIONS: ActionType[] = ['ADVANCE_AGGRESSIVE', 'SECURE_ROUTE']
     if (COSTLY_ACTIONS.includes(action)) {
       ui.openConfirm(action, `¿Confirmar ${action}?`)
       return

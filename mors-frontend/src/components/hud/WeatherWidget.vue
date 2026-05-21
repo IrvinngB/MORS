@@ -78,6 +78,15 @@ watch(() => game.state?.turn, (newTurn) => {
       </div>
     </div>
 
+    <!-- WHITEOUT: visibilidad cero warning -->
+    <div 
+      v-if="game.state?.weather === 'WHITEOUT'" 
+      class="text-[10px] text-danger bg-danger/10 border border-danger/30 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 animate-pulse"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-danger animate-ping" />
+      <span class="font-bold tracking-wider uppercase">¡Visibilidad Cero!</span>
+    </div>
+    
     <!-- Alerta de Cambio de Clima Imprevisto -->
     <div 
       v-if="suddenChange" 

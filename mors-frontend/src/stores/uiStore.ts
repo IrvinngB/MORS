@@ -5,14 +5,16 @@ export const useUiStore = defineStore('ui', () => {
   const showConfirmModal = ref(false)
   const confirmAction = ref<string | null>(null)
   const confirmMessage = ref<string>('')
+  const confirmIsDanger = ref(false)
   const showEventBanner = ref(false)
   const eventBannerText = ref<string>('')
   const eventBannerType = ref<string>('warning')
   const actionError = ref<string | null>(null)
 
-  function openConfirm(action: string, message: string) {
+  function openConfirm(action: string, message: string, isDanger = false) {
     confirmAction.value = action
     confirmMessage.value = message
+    confirmIsDanger.value = isDanger
     showConfirmModal.value = true
   }
 
@@ -20,6 +22,7 @@ export const useUiStore = defineStore('ui', () => {
     showConfirmModal.value = false
     confirmAction.value = null
     confirmMessage.value = ''
+    confirmIsDanger.value = false
   }
 
   function triggerEventBanner(text: string, eventType?: string) {
@@ -35,6 +38,13 @@ export const useUiStore = defineStore('ui', () => {
     setTimeout(() => { actionError.value = null }, 4000)
   }
 
+  function showWarningBanner(text: string, duration = 6000) {
+    eventBannerText.value = text
+    eventBannerType.value = 'warning'
+    showEventBanner.value = true
+    setTimeout(() => { showEventBanner.value = false }, duration)
+  }
+
   function clearActionError() {
     actionError.value = null
   }
@@ -43,6 +53,7 @@ export const useUiStore = defineStore('ui', () => {
     showConfirmModal,
     confirmAction,
     confirmMessage,
+    confirmIsDanger,
     showEventBanner,
     eventBannerText,
     eventBannerType,
@@ -52,6 +63,7 @@ export const useUiStore = defineStore('ui', () => {
     triggerEventBanner,
     showActionError,
     clearActionError,
+    showWarningBanner,
   }
 })
 

@@ -46,6 +46,12 @@ export const useGameStore = defineStore('game', () => {
     return (consumables.value?.rope_sections ?? 0) > 0
   })
 
+  const isCampLethal = computed(() => {
+    const w = weather.value
+    const gas = consumables.value?.gas_canisters ?? 0
+    return (w === 'STORM' || w === 'WHITEOUT') && gas === 0
+  })
+
   async function startGame(role?: string) {
     isLoading.value = true
     error.value = null
@@ -122,6 +128,13 @@ export const useGameStore = defineStore('game', () => {
         const ui = useUiStore()
         ui.triggerEventBanner(res.event.narrative, res.event.event_type)
       }
+
+      if (res.warnings && res.warnings.length > 0) {
+        const ui = useUiStore()
+        for (const w of res.warnings) {
+          ui.showWarningBanner(w, 6000)
+        }
+      }
     } catch (e) {
       if (e instanceof SessionExpiredError) {
         localStorage.removeItem('mors_session_id')
@@ -172,6 +185,7 @@ export const useGameStore = defineStore('game', () => {
     canSecureRoute,
     canFreeHeal,
     canAdvance,
+    isCampLethal,
     startGame,
     resumeGame,
     takeTurn,

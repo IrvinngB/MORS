@@ -300,14 +300,42 @@ function getDisabledReason(actionId: ActionType): string {
     </Transition>
 
     <!-- Block: Movement Actions -->
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-2 relative">
       <h3 
         class="text-[10px] uppercase tracking-[0.2em] font-bold mb-1 select-none"
         :class="willpowerState === 'DESPAIR' ? 'text-danger/50' : 'text-glacier/60'"
       >
         Movimiento de Ascenso
       </h3>
-      <div class="flex flex-col gap-1.5">
+
+      <!-- WHITEOUT advance warning -->
+      <Transition name="warn-slide">
+        <div
+          v-if="game.state?.weather === 'WHITEOUT' && !game.canAdvance"
+          class="px-3 py-2 rounded-lg border border-danger/30 bg-danger/8 text-[11px] text-danger/90 flex items-start gap-2 mb-1"
+        >
+          <svg class="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>No podés avanzar sin cuerda asegurada en visibilidad cero</span>
+        </div>
+      </Transition>
+
+      <div 
+        class="flex flex-col gap-1.5 relative"
+        :class="game.state?.weather === 'WHITEOUT' ? 'whiteout-blur' : ''"
+      >
+        <!-- WHITEOUT overlay -->
+        <div
+          v-if="game.state?.weather === 'WHITEOUT'"
+          class="absolute inset-0 z-10 flex items-center justify-center bg-mors/40 backdrop-blur-[1px] rounded-lg"
+        >
+          <span class="text-xs font-bold text-danger/90 uppercase tracking-wider animate-pulse">
+            Visibilidad cero
+          </span>
+        </div>
         <button
           v-for="action in movementActions"
           :key="action.id"
@@ -415,6 +443,15 @@ function getDisabledReason(actionId: ActionType): string {
 .error-fade-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+/* Warning slide transition */
+.warn-slide-enter-active { transition: all 0.3s ease-out; }
+.warn-slide-leave-active { transition: all 0.2s ease-in; }
+.warn-slide-enter-from,
+.warn-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 /* DESPAIR: buttons tremble slightly */

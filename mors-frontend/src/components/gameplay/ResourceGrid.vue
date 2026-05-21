@@ -6,6 +6,14 @@ const game = useGameStore()
 
 const c = computed(() => game.state?.consumables)
 
+const depletionMessages: Record<string, string> = {
+  food: 'Sin comida — la acción EAT está deshabilitada',
+  gas: 'Sin gas — no podés calentar la tienda en tormenta',
+  o2tanks: 'Sin tanques O₂ — la acción USE_OXYGEN está deshabilitada',
+  rope: 'Sin cuerda — no podés asegurar la ruta ni avanzar en ventisca',
+  oxygen: 'Sin oxígeno — la válvula se cierra automáticamente',
+}
+
 const resources = computed(() => [
   {
     id: 'food',
@@ -17,6 +25,8 @@ const resources = computed(() => [
     depleted: (c.value?.food_rations ?? 0) === 0,
     danger: (c.value?.food_rations ?? 0) <= 2 && (c.value?.food_rations ?? 0) > 0,
     warning: (c.value?.food_rations ?? 0) <= 4 && (c.value?.food_rations ?? 0) > 0,
+    dangerThreshold: 2,
+    depletionMsg: depletionMessages.food,
   },
   {
     id: 'gas',
@@ -28,6 +38,8 @@ const resources = computed(() => [
     depleted: (c.value?.gas_canisters ?? 0) === 0,
     danger: (c.value?.gas_canisters ?? 0) === 0,
     warning: (c.value?.gas_canisters ?? 0) <= 1 && (c.value?.gas_canisters ?? 0) > 0,
+    dangerThreshold: 1,
+    depletionMsg: depletionMessages.gas,
   },
   {
     id: 'o2tanks',
@@ -39,6 +51,8 @@ const resources = computed(() => [
     depleted: (c.value?.oxygen_tanks ?? 0) === 0,
     danger: (c.value?.oxygen_tanks ?? 0) === 0,
     warning: (c.value?.oxygen_tanks ?? 0) <= 1 && (c.value?.oxygen_tanks ?? 0) > 0,
+    dangerThreshold: 1,
+    depletionMsg: depletionMessages.o2tanks,
   },
   {
     id: 'rope',
@@ -50,6 +64,8 @@ const resources = computed(() => [
     depleted: (c.value?.rope_sections ?? 0) === 0,
     danger: (c.value?.rope_sections ?? 0) === 0,
     warning: (c.value?.rope_sections ?? 0) <= 1 && (c.value?.rope_sections ?? 0) > 0,
+    dangerThreshold: 1,
+    depletionMsg: depletionMessages.rope,
   },
   {
     id: 'oxygen',
@@ -61,6 +77,8 @@ const resources = computed(() => [
     depleted: (c.value?.oxygen_pct ?? 0) === 0,
     danger: (c.value?.oxygen_pct ?? 0) <= 20 && (c.value?.oxygen_pct ?? 0) > 0,
     warning: (c.value?.oxygen_pct ?? 0) <= 40 && (c.value?.oxygen_pct ?? 0) > 0,
+    dangerThreshold: 20,
+    depletionMsg: depletionMessages.oxygen,
   },
 ])
 
@@ -96,13 +114,14 @@ function toggleOxygen() {
         class="relative flex flex-col gap-1.5 px-3 py-3 rounded-xl border transition-all duration-300"
         :class="[
           res.depleted
-            ? 'opacity-40 border-white/5 bg-white/[0.01]'
+            ? 'opacity-40 border-white/5 bg-white/[0.01] depleted-card cursor-help'
             : res.danger
               ? 'border-danger/50 bg-danger/10 shadow-[0_0_12px_rgba(192,57,43,0.15)]'
               : res.warning
                 ? 'border-warning/40 bg-warning/8'
                 : 'border-white/8 bg-white/[0.02]',
         ]"
+        :title="res.depleted ? res.depletionMsg : ''"
       >
         <!-- AGOTADO badge -->
         <span
@@ -154,6 +173,14 @@ function toggleOxygen() {
           />
         </div>
 
+        <!-- Depletion hint: show when value > 0 and <= danger threshold -->
+        <span
+          v-if="res.value > 0 && res.value <= (res.dangerThreshold ?? 0)"
+          class="text-[10px] text-warning/70 -mt-0.5"
+        >
+          Quedan {{ res.value }} {{ res.id === 'food' ? 'raciones' : res.id === 'gas' ? 'canisters' : res.id === 'o2tanks' ? 'tanques' : res.id === 'rope' ? 'secciones' : '%' }}
+        </span>
+
         <!-- Oxygen Valve Toggle Button (Only for oxygen card) -->
         <div v-if="res.id === 'oxygen'" class="mt-2.5 flex items-center justify-between gap-2 border-t border-white/5 pt-2.5">
           <span class="text-[9px] uppercase tracking-wider text-ice/40 font-medium">Válvula</span>
@@ -168,10 +195,10 @@ function toggleOxygen() {
                   : 'border-white/10 bg-white/5 text-ice/50 hover:bg-white/10 cursor-pointer',
             ]"
             :disabled="game.isLoading || (c?.oxygen_pct ?? 0) === 0"
-            :title="(c?.oxygen_pct ?? 0) === 0 ? 'Sin oxígeno disponible' : ''"
+            :title="(c?.oxygen_pct ?? 0) === 0 ? 'Sin oxígeno' : c?.oxygen_valve_open ? 'Válvula abierta — consume oxígeno por encima de 7000m' : 'Válvula cerrada'"
           >
             <span class="w-1.5 h-1.5 rounded-full" :class="(c?.oxygen_pct ?? 0) === 0 ? 'bg-ice/20' : c?.oxygen_valve_open ? 'bg-success animate-pulse' : 'bg-ice/30'" />
-            {{ c?.oxygen_valve_open ? 'ABIERTA' : 'CERRADA' }}
+            {{ (c?.oxygen_pct ?? 0) === 0 ? 'Sin oxígeno' : c?.oxygen_valve_open ? 'ABIERTA' : 'CERRADA' }}
           </button>
         </div>
       </div>
@@ -188,4 +215,16 @@ function toggleOxygen() {
   transform: translateY(-6px);
 }
 .warn-fade-move { transition: transform 0.3s ease; }
+
+.depleted-card:hover {
+  animation: depleted-shake 0.4s ease-in-out;
+}
+
+@keyframes depleted-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-2px); }
+  40% { transform: translateX(2px); }
+  60% { transform: translateX(-1px); }
+  80% { transform: translateX(1px); }
+}
 </style>
